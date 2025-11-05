@@ -1,8 +1,8 @@
-module com.example.dormmanagement {
+module com.dtdt.DormManager {
     requires javafx.controls;
     requires javafx.fxml;
 
 
-    opens com.example.dormmanagement to javafx.fxml;
-    exports com.example.dormmanagement;
+    opens com.dtdt.DormManager to javafx.fxml;
+    exports com.dtdt.DormManager;
 }
