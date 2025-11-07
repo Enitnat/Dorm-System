@@ -9,11 +9,11 @@ import java.io.IOException;
 
 public class Main extends Application {
 
-    private static Stage stg; // To store the main window stage
+    private static Stage stg; 
 
     @Override
     public void start(Stage primaryStage) throws IOException {
-        stg = primaryStage; // Save the stage
+        stg = primaryStage; 
         //primaryStage.setResizable(false);
         primaryStage.setTitle("Dorm Management System");
 
