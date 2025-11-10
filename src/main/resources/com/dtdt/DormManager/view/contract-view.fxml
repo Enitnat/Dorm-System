@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+<?import javafx.scene.text.Text?>
+
+<BorderPane style="-fx-background-color: #F4F7FC;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.dtdt.DormManager.controller.ContractViewController">
+    <top>
+        <HBox alignment="CENTER_LEFT" prefHeight="50.0" style="-fx-background-color: #1A1A1A;">
+            <padding>
+                <Insets left="20.0" right="20.0" />
+            </padding>
+            <Text fill="WHITE" text="My Profile &amp; Contract">
+                <font>
+                    <Font name="System Bold" size="16.0" />
+                </font>
+            </Text>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox spacing="20.0">
+            <padding>
+                <Insets bottom="20.0" left="50.0" right="50.0" top="20.0" />
+            </padding>
+
+            <HBox alignment="CENTER_LEFT" spacing="15.0">
+                <Pane prefHeight="60.0" prefWidth="60.0" style="-fx-background-color: #E0E0E0; -fx-background-radius: 30;" />
+                <VBox>
+                    <Label fx:id="tenantNameLabel" text="Tenant Name" textFill="#1a1a1a">
+                        <font><Font name="System Bold" size="24.0" /></font>
+                    </Label>
+                    <Label fx:id="tenantIdLabel" text="Tenant ID" textFill="#555555">
+                        <font><Font size="16.0" /></font>
+                    </Label>
+                </VBox>
+                <Pane HBox.hgrow="ALWAYS" /> <Hyperlink onAction="#goToDashboard" text="Dashboard" />
+                <Hyperlink text="Profile" style="-fx-font-weight: bold; -fx-underline: true;" />
+                <Hyperlink onAction="#goToPayment" text="Payment" />
+                <VBox alignment="CENTER_RIGHT">
+                    <Label fx:id="tenantEmailLabel" text="tenant@test.com" textFill="#1a1a1a">
+                        <font><Font name="System Bold" size="14.0" /></font>
+                    </Label>
+                    <Label text="Tenant" textFill="#555555" />
+                </VBox>
+                <Hyperlink onAction="#onLogoutClick" text="Logout" />
+            </HBox>
+
+            <HBox spacing="30.0">
+                <VBox>
+                    <Label fx:id="buildingLabel" text="Building A" textFill="#1a1a1a">
+                        <font><Font name="System Bold" size="48.0" /></font>
+                    </Label>
+                    <Label fx:id="roomLabel" text="Room 5210" textFill="#555555">
+                        <font><Font size="24.0" /></font>
+                    </Label>
+                </VBox>
+            </HBox>
+
+            <Separator />
+
+            <VBox spacing="15.0" style="-fx-background-color: #FFFFFF; -fx-background-radius: 8; -fx-padding: 30; -fx-border-color: #E0E0E0; -fx-border-radius: 8;">
+                <Label text="Contract Details">
+                    <font><Font name="System Bold" size="18.0" /></font>
+                </Label>
+
+                <GridPane hgap="10.0" vgap="10.0">
+                    <Label text="Contract Type:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                    <Label fx:id="contractTypeLabel" text="Loading..." style="-fx-font-weight: bold;" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+
+                    <Label text="Start Date:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                    <Label fx:id="startDateLabel" text="Loading..." style="-fx-font-weight: bold;" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+                    <Label text="End Date:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                    <Label fx:id="endDateLabel" text="Loading..." style="-fx-font-weight: bold;" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+
+                    <Label text="Monthly Rent:" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+                    <Label fx:id="rentAmountLabel" text="Loading..." style="-fx-font-weight: bold; -fx-font-size: 16;" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+
+                    <Label text="Date Signed:" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+                    <Label fx:id="dateSignedLabel" text="Loading..." style="-fx-font-weight: bold;" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+                </GridPane>
+            </VBox>
+        </VBox>
+    </center>
+</BorderPane>
