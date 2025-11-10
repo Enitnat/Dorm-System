@@ -170,20 +170,13 @@ public class LoginController {
     }
 
 
-    /**
-     * Handles the "Sign up" text link click.
-     * It switches the scene to the sign-up view.
-     */
+
     @FXML
-    protected void goToSignUp(MouseEvent event) throws IOException {
+    protected void goToReservation(MouseEvent event) throws IOException {
         Main main = new Main();
-        main.changeScene("signup-view.fxml");
+        main.changeScene("reservation-view.fxml"); // Make sure this is updated too
     }
 
-    /**
-     * Handles the "Sign in" text link click.
-     * It switches the scene to the login view.
-     */
     @FXML
     protected void goToSignIn(MouseEvent event) throws IOException {
         Main main = new Main();

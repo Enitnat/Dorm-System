@@ -52,9 +52,12 @@
                 </VBox>
 
                 <HBox alignment="CENTER" spacing="5.0">
-                    <Text text="Don't have an account?"/>
-                    <Text text="Sign up" style="-fx-fill: #007AFF; -fx-font-weight: bold; -fx-cursor: hand;"
-                          onMouseClicked="#goToSignUp"/>
+                    <padding>
+                        <Insets top="10.0" />
+                    </padding>
+                    <Text text="Need a room?"/>
+                    <Text text="Make a Reservation" style="-fx-fill: #007AFF; -fx-font-weight: bold; -fx-cursor: hand;"
+                          onMouseClicked="#goToReservation"/>
                 </HBox>
             </VBox>
         </VBox>
