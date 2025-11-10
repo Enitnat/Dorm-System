@@ -37,3 +37,10 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### LocalFiles ###
+src/main/resources/serviceAccountKey.json
+
+### IntelliJ Things ###
+.idea/copilot.data.migration.*.xml
+.idea/material_theme_project_new.xml
