@@ -1,6 +1,6 @@
 package com.dtdt.DormManager.controller.admin;
 
-import com.dtdt.DormManager.Main; // Import Main to access db
+import com.dtdt.DormManager.controller.config.FirebaseInit;
 import com.dtdt.DormManager.model.Building; // Import your new model
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.DocumentReference;
@@ -16,6 +16,8 @@ import javafx.scene.image.ImageView;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import javafx.scene.Node;
+
 
 public class BuildingsViewController {
     @FXML private VBox buildingsContainer;
@@ -55,7 +57,7 @@ public class BuildingsViewController {
 
                 // --- 2. Save to Firebase ---
                 // Create a new document with a random ID
-                DocumentReference docRef = Main.db.collection("buildings").document(UUID.randomUUID().toString());
+                DocumentReference docRef = FirebaseInit.db.collection("buildings").document(UUID.randomUUID().toString());
                 ApiFuture<WriteResult> future = docRef.set(newBuilding);
 
                 // (Optional) You can add a listener to confirm it saved
@@ -84,7 +86,7 @@ public class BuildingsViewController {
         buildingsContainer.getChildren().clear(); // Clear old data
 
         // --- 1. Asynchronously get all buildings ---
-        ApiFuture<QuerySnapshot> future = Main.db.collection("buildings").get();
+        ApiFuture<QuerySnapshot> future = FirebaseInit.db.collection("buildings").get();
 
         // --- 2. Add a listener to run when data is retrieved ---
         future.addListener(() -> {
@@ -167,7 +169,7 @@ public class BuildingsViewController {
             // TODO: Add an "Are you sure?" confirmation dialog
 
             // Delete from Firebase
-            ApiFuture<WriteResult> deleteFuture = Main.db.collection("buildings").document(documentId).delete();
+            ApiFuture<WriteResult> deleteFuture = FirebaseInit.db.collection("buildings").document(documentId).delete();
 
             // Add listener to remove from UI *after* successful delete
             deleteFuture.addListener(() -> {
