@@ -20,7 +20,7 @@ public class Main extends Application {
         // Initialize Firebase
         try {
             FirebaseInit.initialize();
-            System.out.println("Firebase initialized successfully");
+            System.out.println("Main connected to Firebase.");
             // This line is fine as it confirms the DB is ready
             Firestore db = FirebaseInit.getDatabase();
         } catch (IOException e) {
@@ -31,8 +31,9 @@ public class Main extends Application {
         }
 
         stg = primaryStage;
-        //primaryStage.setResizable(false);
+        //primaryStage.setResizable(false); 
         primaryStage.setTitle("Dorm Management System");
+        // primaryStage.setMaximized(true); (Start maximized to fill entire monitor)
 
         // Use the full, absolute path
         FXMLLoader fxmlLoader = new FXMLLoader(Main.class.getResource("/com/dtdt/DormManager/view/login-view.fxml"));

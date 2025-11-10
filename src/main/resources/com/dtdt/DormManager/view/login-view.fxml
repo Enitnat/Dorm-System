@@ -23,41 +23,82 @@
     </top>
 
     <center>
-        <VBox alignment="CENTER" spacing="20.0" maxWidth="350">
-            <VBox alignment="CENTER" spacing="10.0"
-                  style="-fx-background-color: #FFFFFF; -fx-padding: 30; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0.5, 0, 0);">
+        <VBox alignment="CENTER" spacing="20.0" maxWidth="400">
+            <VBox alignment="CENTER" spacing="5.0"
+                  style="-fx-background-color: #FFFFFF; -fx-padding: 35 40 35 40; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0.4, 0, 2);">
 
-                <Text text="Dorm Management System" wrappingWidth="300.0" textAlignment="CENTER">
-                    <font><Font name="System Bold" size="18.0"/></font>
+                <Text text="Dorm Management System" wrappingWidth="320.0" textAlignment="CENTER">
+                    <font><Font name="System Bold" size="20.0"/></font>
                 </Text>
-                <Text text="Sign in to your account to continue" fill="#888888" wrappingWidth="300.0" textAlignment="CENTER"/>
+                <Text text="Sign in to your account to continue" fill="#666666" wrappingWidth="320.0" textAlignment="CENTER">
+                    <font><Font size="13.0"/></font>
+                </Text>
 
                 <VBox spacing="15.0" alignment="CENTER">
-                    <VBox spacing="5.0" prefWidth="300.0">
-                        <Label text="Student ID"/>
-                        <TextField fx:id="studentIdField" promptText="Enter your student ID"/>
+                    <padding>
+                        <Insets top="5.0"/>
+                    </padding>
+                    
+                    <VBox spacing="5.0" prefWidth="320.0">
+                        <Label text="Student ID">
+                            <font><Font size="12.0"/></font>
+                        </Label>
+                        <TextField fx:id="studentIdField" promptText="Enter your student ID"
+                                   style="-fx-padding: 10; -fx-background-radius: 6; -fx-border-radius: 6; -fx-border-color: #E0E0E0;"/>
                     </VBox>
-                    <VBox spacing="5.0" prefWidth="300.0">
-                        <Label text="Email"/>
-                        <TextField fx:id="emailFieldLogin" promptText="your.email@university.edu"/>
+                    
+                    <VBox spacing="5.0" prefWidth="320.0">
+                        <Label text="Email">
+                            <font><Font size="12.0"/></font>
+                        </Label>
+                        <TextField fx:id="emailFieldLogin" promptText="your.email@university.edu"
+                                   style="-fx-padding: 10; -fx-background-radius: 6; -fx-border-radius: 6; -fx-border-color: #E0E0E0;"/>
                     </VBox>
-                    <VBox spacing="5.0" prefWidth="300.0">
-                        <Label text="Password"/>
-                        <PasswordField fx:id="passwordFieldLogin" promptText="Enter your password"/>
+                    
+                    <VBox spacing="5.0" prefWidth="320.0">
+                        <Label text="Password">
+                            <font><Font size="12.0"/></font>
+                        </Label>
+                        <StackPane>
+                            <PasswordField fx:id="passwordFieldLogin" promptText="Enter your password"
+                                          style="-fx-padding: 10 35 10 10; -fx-background-radius: 6; -fx-border-radius: 6; -fx-border-color: #E0E0E0;"/>
+                            <TextField fx:id="passwordTextFieldLogin" promptText="Enter your password" visible="false"
+                                      style="-fx-padding: 10 35 10 10; -fx-background-radius: 6; -fx-border-radius: 6; -fx-border-color: #E0E0E0;"/>
+                            <HBox alignment="CENTER_RIGHT" pickOnBounds="false">
+                                <Button fx:id="togglePasswordLoginBtn" text="👁" onAction="#togglePasswordVisibilityLogin"
+                                        style="-fx-background-color: transparent; -fx-text-fill: #666666; -fx-cursor: hand; -fx-font-size: 18; -fx-border-width: 0;"
+                                        prefHeight="30">
+                                    <HBox.margin>
+                                        <Insets right="8.0"/>
+                                    </HBox.margin>
+                                </Button>
+                            </HBox>
+                        </StackPane>
                     </VBox>
+                    
+                    <Label fx:id="loginErrorLabel" text="" textFill="#FF3B30" visible="false" managed="false" wrapText="true" prefWidth="320.0" textAlignment="CENTER">
+                        <font><Font size="11.0"/></font>
+                    </Label>
 
                     <Button fx:id="signInButton" text="Sign In" onAction="#onSignInClick"
-                            prefWidth="300.0" prefHeight="40.0"
-                            style="-fx-background-color: #1A1A1A; -fx-text-fill: #FFFFFF; -fx-font-weight: bold;"/>
+                            prefWidth="320.0" prefHeight="42.0"
+                            style="-fx-background-color: #1A1A1A; -fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand;"
+                            onMouseEntered="#onMouseEntered" onMouseExited="#onMouseExited">
+                        <font><Font size="13.0"/></font>
+                    </Button>
                 </VBox>
 
                 <HBox alignment="CENTER" spacing="5.0">
                     <padding>
-                        <Insets top="10.0" />
+                        <Insets top="5.0" />
                     </padding>
-                    <Text text="Need a room?"/>
+                    <Text text="Need a room?">
+                        <font><Font size="12.0"/></font>
+                    </Text>
                     <Text text="Make a Reservation" style="-fx-fill: #007AFF; -fx-font-weight: bold; -fx-cursor: hand;"
-                          onMouseClicked="#goToReservation"/>
+                          onMouseClicked="#goToReservation">
+                        <font><Font size="12.0"/></font>
+                    </Text>
                 </HBox>
             </VBox>
         </VBox>

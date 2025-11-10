@@ -69,13 +69,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
+                    <!-- Use <release> to match the JDK feature level; using 17 to match your installed JDK -->
                     <release>18</release>
-                    <compilerArgs>
-                        <arg>--module-path</arg>
-                        <arg>${javafx.modules}</arg>
-                        <arg>--add-modules</arg>
-                        <arg>javafx.controls,javafx.fxml,javafx.graphics</arg>
-                    </compilerArgs>
                 </configuration>
             </plugin>
 

@@ -21,7 +21,7 @@ public class FirebaseInit {
 
             if (serviceAccount == null) {
                 // This provides a much clearer error message
-                throw new IOException("Cannot find serviceAccountKey.json. Make sure it's in src/main/resources");
+                throw new IOException("Cannot find Key, Misplace?");
             }
 
             GoogleCredentials credentials = GoogleCredentials.fromStream(serviceAccount);
@@ -32,7 +32,7 @@ public class FirebaseInit {
             // Check if app is already initialized to avoid errors
             if (FirebaseApp.getApps().isEmpty()) {
                 FirebaseApp.initializeApp(options);
-                System.out.println("Firebase initialized successfully!");
+                System.out.println("Firebase App Initialized.");
             }
 
             db = FirestoreClient.getFirestore();
