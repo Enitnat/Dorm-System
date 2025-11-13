@@ -5,6 +5,7 @@ import com.dtdt.DormManager.model.Tenant;
 import com.dtdt.DormManager.controller.config.FirebaseInit;
 import com.google.cloud.firestore.Firestore;
 import javafx.fxml.FXML;
+import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -705,9 +706,11 @@ public class PaymentController {
                         });
                     }
                     
-                    // Update receipt combo box and UI after loading both details and statuses
-                    updateReceiptComboBox();
-                    updateAllMonthBoxesUI();
+                    // Update receipt combo box and UI after loading both details and statuses on the FX thread
+                    Platform.runLater(() -> {
+                        updateReceiptComboBox();
+                        updateAllMonthBoxesUI();
+                    });
                 } catch (Exception e) {
                     System.err.println("Error loading payment statuses from Firebase: " + e.getMessage());
                     e.printStackTrace();
