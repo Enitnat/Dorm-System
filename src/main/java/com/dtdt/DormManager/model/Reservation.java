@@ -1,5 +1,6 @@
 package com.dtdt.DormManager.model;
 
+import com.google.cloud.firestore.annotation.DocumentId;
 import com.google.cloud.firestore.annotation.ServerTimestamp;
 import java.util.Date;
 
@@ -7,6 +8,7 @@ import java.util.Date;
 public class Reservation {
 
     // Basic Info
+    @DocumentId String id;
     private String firstName;
     private String lastName;
     private String studentId;
@@ -47,4 +49,6 @@ public class Reservation {
     public void setStatus(String status) { this.status = status; }
     public Date getDateSubmitted() { return dateSubmitted; }
     public void setDateSubmitted(Date dateSubmitted) { this.dateSubmitted = dateSubmitted; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 }

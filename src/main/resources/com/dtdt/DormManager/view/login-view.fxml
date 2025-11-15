@@ -82,8 +82,7 @@
 
                     <Button fx:id="signInButton" text="Sign In" onAction="#onSignInClick"
                             prefWidth="320.0" prefHeight="42.0"
-                            style="-fx-background-color: #1A1A1A; -fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand;"
-                            onMouseEntered="#onMouseEntered" onMouseExited="#onMouseExited">
+                            style="-fx-background-color: #1A1A1A; -fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand;">
                         <font><Font size="13.0"/></font>
                     </Button>
                 </VBox>

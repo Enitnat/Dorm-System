@@ -18,6 +18,7 @@ public class AdminDashboardController {
     @FXML private Button roomsButton;
     @FXML private Button residentsButton;
     @FXML private Button maintenanceButton;
+    @FXML private Button reservationsButton;
 
     private Admin currentAdmin;
     private Node currentContent;
@@ -61,6 +62,12 @@ public class AdminDashboardController {
     }
 
     @FXML
+    private void onReservationsClick() {
+        loadView("reservations-view.fxml");
+        setActiveButton(reservationsButton);
+    }
+
+    @FXML
     private void onLogoutClick() throws IOException {
         Main main = new Main();
         main.changeScene("login-view.fxml");
@@ -94,6 +101,7 @@ public class AdminDashboardController {
     roomsButton.setStyle("-fx-background-color: transparent; -fx-alignment: CENTER_LEFT;");
     residentsButton.setStyle("-fx-background-color: transparent; -fx-alignment: CENTER_LEFT;");
     maintenanceButton.setStyle("-fx-background-color: transparent; -fx-alignment: CENTER_LEFT;");
+    reservationsButton.setStyle("-fx-background-color: transparent; -fx-alignment: CENTER_LEFT;");
 
         // Set active button style
     activeButton.setStyle("-fx-background-color: #F4F7FC; -fx-alignment: CENTER_LEFT; -fx-font-weight: bold;");
