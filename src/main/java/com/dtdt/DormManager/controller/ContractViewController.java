@@ -16,6 +16,7 @@ import javafx.scene.Parent;
 import javafx.scene.control.Label;
 import javafx.stage.Stage;
 import com.dtdt.DormManager.controller.config.FirebaseInit;
+import com.dtdt.DormManager.controller.TenantProfileController;
 
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -56,27 +57,22 @@ public class ContractViewController {
     }
 
     private void loadRoomInfo() {
-        // TODO: The Tenant object should ideally also have the room number and building name
-        // For now, we'll use dummy data as before.
+        // TODO: Load this from the tenant's roomID
         buildingLabel.setText("Building A");
         roomLabel.setText("Room 5210");
     }
 
     private void loadContractInfo() {
-        // TODO: The Tenant object should have their 'contractId'
-        // String contractId = currentTenant.getContractId();
-        
-        // --- This is DUMMY data for now ---
-        // In a real app, you would fetch this from Firebase
-        String dummyContractId = "contract_abc_id"; 
-        
-        if (dummyContractId == null) {
+        // TODO: Get this from currentTenant.getContractID()
+        String contractId = currentTenant.getContractID();
+
+        if (contractId == null) {
             setAllLabels("No contract found.");
             return;
         }
 
         Firestore db = FirebaseInit.db;
-        DocumentReference docRef = db.collection("contracts").document(dummyContractId);
+        DocumentReference docRef = db.collection("contracts").document(contractId);
         ApiFuture<DocumentSnapshot> future = docRef.get();
 
         future.addListener(() -> {
@@ -98,11 +94,14 @@ public class ContractViewController {
     private void populateContractFields(Contract contract) {
         contractTypeLabel.setText(contract.getContractType());
         rentAmountLabel.setText(currencyFormatter.format(contract.getRentAmount()));
-        
+
         // Format dates
-        startDateLabel.setText(dateFormatter.format(contract.getStartDate()));
-        endDateLabel.setText(dateFormatter.format(contract.getEndDate()));
-        dateSignedLabel.setText(dateFormatter.format(contract.getDateSigned()));
+        if(contract.getStartDate() != null)
+            startDateLabel.setText(dateFormatter.format(contract.getStartDate()));
+        if(contract.getEndDate() != null)
+            endDateLabel.setText(dateFormatter.format(contract.getEndDate()));
+        if(contract.getDateSigned() != null)
+            dateSignedLabel.setText(dateFormatter.format(contract.getDateSigned()));
     }
 
     private void setAllLabels(String text) {
@@ -120,6 +119,13 @@ public class ContractViewController {
         loadScene(event, "tenant-dashboard.fxml", "Tenant Dashboard");
     }
 
+    // --- THIS IS THE NEW METHOD ---
+    @FXML
+    private void goToProfile(ActionEvent event) throws IOException {
+        loadScene(event, "tenant-profile-view.fxml", "Profile");
+    }
+    // --- END NEW METHOD ---
+
     @FXML
     private void goToPayment(ActionEvent event) throws IOException {
         loadScene(event, "payment-view.fxml", "Payment Registration");
@@ -131,7 +137,7 @@ public class ContractViewController {
         main.changeScene("login-view.fxml");
     }
 
-    // Helper method for easy scene switching
+    // --- THIS METHOD IS UPDATED ---
     private void loadScene(ActionEvent event, String fxmlFile, String title) throws IOException {
         FXMLLoader loader = new FXMLLoader(Main.class.getResource("/com/dtdt/DormManager/view/" + fxmlFile));
         Parent root = loader.load();
@@ -142,6 +148,9 @@ public class ContractViewController {
             controller.initData(this.currentTenant);
         } else if (title.equals("Payment Registration")) {
             PaymentController controller = loader.getController();
+            controller.initData(this.currentTenant);
+        } else if (title.equals("Profile")) { // <-- ADD THIS CASE
+            TenantProfileController controller = loader.getController();
             controller.initData(this.currentTenant);
         }
 

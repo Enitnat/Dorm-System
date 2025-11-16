@@ -12,6 +12,9 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import com.dtdt.DormManager.controller.ChangePasswordDialogController;
+import com.dtdt.DormManager.controller.ContractViewController;
+
 
 import java.io.IOException;
 
@@ -20,31 +23,30 @@ public class TenantProfileController {
     @FXML private Label tenantNameLabel;
     @FXML private Label tenantIdLabel;
     @FXML private Label tenantEmailLabel;
-    
+
     @FXML private TextField nameField;
     @FXML private TextField emailField;
     @FXML private TextField studentIdField;
     @FXML private TextField buildingField;
     @FXML private TextField roomField;
 
-    private Tenant currentTenant;
+    private Tenant currentTenant; // This is the class-level variable
 
-    public void initData(Tenant tenant) {
-        this.currentTenant = tenant;
+    public void initData(Tenant tenant) { // 'tenant' is the parameter
+        this.currentTenant = tenant; // Save the parameter to the class variable
 
         // Populate header
-        tenantNameLabel.setText(tenant.getFullName());
-        tenantIdLabel.setText(tenant.getUserId());
-        tenantEmailLabel.setText(tenant.getEmail());
+        tenantNameLabel.setText(currentTenant.getFullName()); // Use the class variable
+        tenantIdLabel.setText(currentTenant.getUserId());
+        tenantEmailLabel.setText(currentTenant.getEmail());
 
         // Populate fields
-        nameField.setText(tenant.getFullName());
-        emailField.setText(tenant.getEmail());
-        studentIdField.setText(tenant.getUserId());
-        
-        // TODO: Load and display building/room data
-        buildingField.setText(tenant.getRoomID() != null ? tenant.getRoomID() : "Not Assigned");
-        roomField.setText("N/A"); // You'll need to fetch this from the Room object
+        nameField.setText(currentTenant.getFullName());
+        emailField.setText(currentTenant.getEmail());
+        studentIdField.setText(currentTenant.getUserId());
+
+        buildingField.setText(currentTenant.getRoomID() != null ? currentTenant.getRoomID() : "Not Assigned");
+        roomField.setText("N/A");
     }
 
     // --- Navigation ---
@@ -65,44 +67,52 @@ public class TenantProfileController {
     }
 
     // --- Main Feature ---
-    
+
     @FXML
     private void onChangePasswordClick(ActionEvent event) {
         try {
-            // 1. Load the dialog FXML
             FXMLLoader loader = new FXMLLoader(Main.class.getResource("/com/dtdt/DormManager/view/change-password-dialog.fxml"));
             Parent root = loader.load();
 
-            // 2. Get its controller and pass the tenant data
+            // This line needs the import
             ChangePasswordDialogController dialogController = loader.getController();
+            // This line needs the import to work
             dialogController.initData(currentTenant);
 
-            // 3. Show the dialog as a new "pop-up" window
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Change Password");
             dialogStage.initModality(Modality.WINDOW_MODAL);
             dialogStage.initOwner(((Node) event.getSource()).getScene().getWindow());
             dialogStage.setScene(new Scene(root));
-            dialogStage.showAndWait(); // Wait for the user to close it
+            dialogStage.showAndWait();
 
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-    
+
+    @FXML
+    private void onViewContractClick(ActionEvent event) throws IOException {
+        loadScene(event, "/com/dtdt/DormManager/view/contract-view.fxml", "My Contract");
+    }
+
     // Helper method to load new scenes
     private void loadScene(ActionEvent event, String fxmlFile, String title) throws IOException {
         FXMLLoader loader = new FXMLLoader(Main.class.getResource(fxmlFile));
         Parent root = loader.load();
 
-        // Get the controller and pass data
+        // --- SYNTAX FIXED HERE ---
         if (title.equals("Tenant Dashboard")) {
             com.dtdt.DormManager.controller.TenantDashboardController controller = loader.getController();
             controller.initData(currentTenant);
         } else if (title.equals("Payment Registration")) {
             com.dtdt.DormManager.controller.PaymentController controller = loader.getController();
             controller.initData(currentTenant);
+        } else if (title.equals("My Contract")) {
+            ContractViewController controller = loader.getController(); // This line needs the import
+            controller.initData(currentTenant); // This line needs the import to work
         }
+        // --- END FIX ---
 
         Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
         stage.getScene().setRoot(root);

@@ -48,7 +48,7 @@
                 <Pane HBox.hgrow="ALWAYS" />
 
                 <Hyperlink onAction="#goToDashboard" text="Dashboard" />
-                <Hyperlink text="Profile" />
+                <Hyperlink text="Profile" onAction="#onProfileClick" />
                 <Hyperlink style="-fx-font-weight: bold; -fx-underline: true;" text="Payment" />
                 <VBox alignment="CENTER_RIGHT">
                     <Label fx:id="tenantEmailLabel" text="tenant@test.com" textFill="#1a1a1a">

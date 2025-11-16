@@ -3,11 +3,12 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Hyperlink?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Separator?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 <?import javafx.scene.text.Text?>
@@ -18,7 +19,7 @@
             <padding>
                 <Insets left="20.0" right="20.0" />
             </padding>
-            <Text fill="WHITE" text="My Profile &amp; Contract">
+            <Text fill="WHITE" text="My Contract">
                 <font>
                     <Font name="System Bold" size="16.0" />
                 </font>
@@ -42,8 +43,9 @@
                         <font><Font size="16.0" /></font>
                     </Label>
                 </VBox>
-                <Pane HBox.hgrow="ALWAYS" /> <Hyperlink onAction="#goToDashboard" text="Dashboard" />
-                <Hyperlink text="Profile" style="-fx-font-weight: bold; -fx-underline: true;" />
+                <Pane HBox.hgrow="ALWAYS" />
+                <Hyperlink onAction="#goToDashboard" text="Dashboard" />
+                <Hyperlink onAction="#goToProfile" text="Profile" />
                 <Hyperlink onAction="#goToPayment" text="Payment" />
                 <VBox alignment="CENTER_RIGHT">
                     <Label fx:id="tenantEmailLabel" text="tenant@test.com" textFill="#1a1a1a">
@@ -56,37 +58,35 @@
 
             <HBox spacing="30.0">
                 <VBox>
-                    <Label fx:id="buildingLabel" text="Building A" textFill="#1a1a1a">
+                    <Label fx:id="buildingLabel" text="Loading..." textFill="#1a1a1a">
                         <font><Font name="System Bold" size="48.0" /></font>
                     </Label>
-                    <Label fx:id="roomLabel" text="Room 5210" textFill="#555555">
+                    <Label fx:id="roomLabel" text="Loading..." textFill="#555555">
                         <font><Font size="24.0" /></font>
                     </Label>
                 </VBox>
             </HBox>
-
-            <Separator />
-
-            <VBox spacing="15.0" style="-fx-background-color: #FFFFFF; -fx-background-radius: 8; -fx-padding: 30; -fx-border-color: #E0E0E0; -fx-border-radius: 8;">
-                <Label text="Contract Details">
+            <VBox style="-fx-background-color: white; -fx-padding: 30; -fx-background-radius: 10;" VBox.vgrow="ALWAYS" spacing="15">
+                <Text text="Contract Details">
                     <font><Font name="System Bold" size="18.0" /></font>
-                </Label>
+                </Text>
 
-                <GridPane hgap="10.0" vgap="10.0">
-                    <Label text="Contract Type:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
-                    <Label fx:id="contractTypeLabel" text="Loading..." style="-fx-font-weight: bold;" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+                <GridPane hgap="10" vgap="12">
+                    <padding><Insets top="10" /></padding>
+                    <Label text="Contract Type:" GridPane.rowIndex="0" GridPane.columnIndex="0" style="-fx-font-weight: bold;" />
+                    <Label fx:id="contractTypeLabel" text="Loading..." GridPane.rowIndex="0" GridPane.columnIndex="1" />
 
-                    <Label text="Start Date:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
-                    <Label fx:id="startDateLabel" text="Loading..." style="-fx-font-weight: bold;" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+                    <Label text="Rent Amount:" GridPane.rowIndex="1" GridPane.columnIndex="0" style="-fx-font-weight: bold;" />
+                    <Label fx:id="rentAmountLabel" text="Loading..." GridPane.rowIndex="1" GridPane.columnIndex="1" />
 
-                    <Label text="End Date:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
-                    <Label fx:id="endDateLabel" text="Loading..." style="-fx-font-weight: bold;" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+                    <Label text="Contract Start Date:" GridPane.rowIndex="2" GridPane.columnIndex="0" style="-fx-font-weight: bold;" />
+                    <Label fx:id="startDateLabel" text="Loading..." GridPane.rowIndex="2" GridPane.columnIndex="1" />
 
-                    <Label text="Monthly Rent:" GridPane.rowIndex="3" GridPane.columnIndex="0" />
-                    <Label fx:id="rentAmountLabel" text="Loading..." style="-fx-font-weight: bold; -fx-font-size: 16;" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+                    <Label text="Contract End Date:" GridPane.rowIndex="3" GridPane.columnIndex="0" style="-fx-font-weight: bold;" />
+                    <Label fx:id="endDateLabel" text="Loading..." GridPane.rowIndex="3" GridPane.columnIndex="1" />
 
-                    <Label text="Date Signed:" GridPane.rowIndex="4" GridPane.columnIndex="0" />
-                    <Label fx:id="dateSignedLabel" text="Loading..." style="-fx-font-weight: bold;" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+                    <Label text="Date Signed:" GridPane.rowIndex="4" GridPane.columnIndex="0" style="-fx-font-weight: bold;" />
+                    <Label fx:id="dateSignedLabel" text="Loading..." GridPane.rowIndex="4" GridPane.columnIndex="1" />
                 </GridPane>
             </VBox>
         </VBox>

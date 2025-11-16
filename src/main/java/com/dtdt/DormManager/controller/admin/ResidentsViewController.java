@@ -46,7 +46,7 @@ public class ResidentsViewController {
         studentIdColumn.setCellValueFactory(new PropertyValueFactory<>("userId"));
 
         // This links to 'assignedRoomID' in your Tenant model (which is null for now)
-        roomColumn.setCellValueFactory(new PropertyValueFactory<>("assignedRoomID"));
+        roomColumn.setCellValueFactory(new PropertyValueFactory<>("roomID"));
 
         // We'll use email for "Contact"
         contactColumn.setCellValueFactory(new PropertyValueFactory<>("email"));

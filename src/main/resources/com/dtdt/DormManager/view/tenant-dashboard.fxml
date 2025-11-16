@@ -48,8 +48,8 @@
                     </Label>
                 </VBox>
                 <Pane HBox.hgrow="ALWAYS" /> <Hyperlink text="Dashboard" style="-fx-font-weight: bold; -fx-underline: true;" />
-                <Hyperlink text="Profile" />
                 <Hyperlink text="Profile" onAction="#onProfileClick" />
+                <Hyperlink text="Payment" onAction="#onPaymentClick" />
                 <VBox alignment="CENTER_RIGHT">
                     <Label fx:id="tenantEmailLabel" text="tenant@test.com" textFill="#1a1a1a">
                         <font>

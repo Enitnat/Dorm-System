@@ -61,6 +61,7 @@
                         <font><Font name="System Bold" size="18.0" /></font>
                     </Text>
                     <Pane HBox.hgrow="ALWAYS" />
+                    <Button text="View Contract" onAction="#onViewContractClick" style="-fx-background-color: transparent; -fx-border-color: #1A1A1A; -fx-border-radius: 4; -fx-font-weight: bold;"/>
                     <Button text="Change Password" onAction="#onChangePasswordClick" style="-fx-background-color: #1A1A1A; -fx-text-fill: white; -fx-font-weight: bold;"/>
                 </HBox>
 

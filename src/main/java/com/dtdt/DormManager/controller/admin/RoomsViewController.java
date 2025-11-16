@@ -1,7 +1,8 @@
 package com.dtdt.DormManager.controller.admin;
 
-import com.dtdt.DormManager.model.Building; // We need this to get a list of buildings
+import com.dtdt.DormManager.model.Building;
 import com.dtdt.DormManager.model.Room;
+import com.dtdt.DormManager.model.Tenant; // Import Tenant for occupancy tracking
 import com.dtdt.DormManager.service.RoomStore;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.DocumentReference;
@@ -34,19 +35,42 @@ public class RoomsViewController {
     @FXML private ComboBox<String> statusCombo;
     @FXML private Button addRoomBtn;
 
-    // Local cache of rooms so we can sort/filter in-memory without refetching
+    // Local cache of rooms and tenants
     private final ObservableList<Room> roomList = FXCollections.observableArrayList();
-
-    // No programmatic toolbar anymore — we use the FXML-provided ComboBoxes
+    private final ObservableList<Tenant> tenantList = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
-        loadRooms();
+        loadTenantsForOccupancy(); // Load tenants first
+        loadRooms(); // Then load rooms (which triggers render)
         setupFilters();
     }
 
+    /**
+     * Fetches all tenants to calculate occupancy for each room.
+     */
+    private void loadTenantsForOccupancy() {
+        ApiFuture<QuerySnapshot> future = FirebaseInit.db.collection("users")
+                .whereEqualTo("userType", "Tenant")
+                .get();
+        future.addListener(() -> {
+            try {
+                List<Tenant> fetchedTenants = new ArrayList<>();
+                for (QueryDocumentSnapshot document : future.get().getDocuments()) {
+                    fetchedTenants.add(document.toObject(Tenant.class));
+                }
+                Platform.runLater(() -> {
+                    tenantList.setAll(fetchedTenants);
+                    renderRooms(); // Re-render rooms to update occupancy counts
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }, Runnable::run);
+    }
+
     private void setupFilters() {
-        // When building changes, repopulate floor/type/status based on rooms in that building
+        // When building changes, repopulate floor/type/status
         if (buildingCombo != null) {
             buildingCombo.setCellFactory(lv -> new ListCell<>() {
                 @Override protected void updateItem(Building item, boolean empty) {
@@ -71,18 +95,26 @@ public class RoomsViewController {
 
     private void populateDependentFiltersAndRender() {
         Building selected = buildingCombo == null ? null : buildingCombo.getValue();
-        if (selected == null) {
+
+        // If "All Buildings" is selected (or nothing), clear dependent filters
+        if (selected == null || selected.getId() == null) {
             if (floorCombo != null) floorCombo.getItems().clear();
             if (typeCombo != null) typeCombo.getItems().clear();
             if (statusCombo != null) statusCombo.getItems().clear();
+
+            // Add "All" options back
+            if (floorCombo != null) floorCombo.getItems().add("All Floors");
+            if (typeCombo != null) typeCombo.getItems().add("All Types");
+            if (statusCombo != null) statusCombo.getItems().add("All Statuses");
+
             renderRooms();
             return;
         }
 
         // Gather unique floors/types/status for the selected building
-        var floors = FXCollections.observableArrayList(new ArrayList<String>());
-        var types = FXCollections.observableArrayList(new ArrayList<String>());
-        var statuses = FXCollections.observableArrayList(new ArrayList<String>());
+        var floors = FXCollections.observableArrayList("All Floors");
+        var types = FXCollections.observableArrayList("All Types");
+        var statuses = FXCollections.observableArrayList("All Statuses");
 
         for (Room r : roomList) {
             if (selected.getId().equals(r.getBuildingId())) {
@@ -94,26 +126,22 @@ public class RoomsViewController {
         }
 
         if (floorCombo != null) {
-            floorCombo.getItems().setAll(floors);
-            floorCombo.getSelectionModel().clearSelection();
-            floorCombo.setPromptText("Floor");
+            floorCombo.setItems(floors);
+            floorCombo.getSelectionModel().select("All Floors");
         }
         if (typeCombo != null) {
-            typeCombo.getItems().setAll(types);
-            typeCombo.getSelectionModel().clearSelection();
-            typeCombo.setPromptText("Type");
+            typeCombo.setItems(types);
+            typeCombo.getSelectionModel().select("All Types");
         }
         if (statusCombo != null) {
-            statusCombo.getItems().setAll(statuses);
-            statusCombo.getSelectionModel().clearSelection();
-            statusCombo.setPromptText("Status");
+            statusCombo.setItems(statuses);
+            statusCombo.getSelectionModel().select("All Statuses");
         }
 
         renderRooms();
     }
 
     private void loadRooms() {
-        // After loading rooms, we'll populate building dropdown and dependent filters
         ApiFuture<QuerySnapshot> future = FirebaseInit.db.collection("rooms").get();
         future.addListener(() -> {
             try {
@@ -121,26 +149,13 @@ public class RoomsViewController {
                 List<Room> fetched = new ArrayList<>();
                 for (QueryDocumentSnapshot document : documents) {
                     Room room = document.toObject(Room.class);
-                    // Ensure the room's id is set if model uses it (some models expect it)
-                    try {
-                        java.lang.reflect.Field idField = Room.class.getDeclaredField("id");
-                        idField.setAccessible(true);
-                        Object existing = idField.get(room);
-                        if (existing == null) idField.set(room, document.getId());
-                    } catch (NoSuchFieldException nsf) {
-                        // ignore if no id field exists
-                    } catch (Exception ex) {
-                        // ignore reflection issues
-                    }
                     fetched.add(room);
                 }
                 Platform.runLater(() -> {
                     roomList.setAll(fetched);
-                    // Update central RoomStore for other views to consume
                     RoomStore.getInstance().setRooms(fetched);
-                    // Populate building combo from fetched rooms (unique buildings)
                     populateBuildings();
-                    renderRooms();
+                    renderRooms(); // Initial render
                 });
             } catch (Exception e) {
                 e.printStackTrace();
@@ -150,27 +165,32 @@ public class RoomsViewController {
 
     private void populateBuildings() {
         if (buildingCombo == null) return;
-        // Unique buildings from roomList
-        var buildings = FXCollections.observableArrayList(new ArrayList<Building>());
+
+        // Add "All Buildings" option
+        Building allBuildings = new Building();
+        allBuildings.setId(null); // Use null ID as identifier for "All"
+        allBuildings.setName("All Buildings");
+
+        var buildings = FXCollections.observableArrayList(allBuildings);
+
+        // Gather unique buildings from roomList
         for (Room r : roomList) {
             Building b = new Building();
             b.setId(r.getBuildingId());
             b.setName(r.getBuildingName());
-            // Ensure we only add unique building ids
             boolean exists = false;
-            for (Building ex : buildings) if (ex.getId().equals(b.getId())) { exists = true; break; }
+            for (Building ex : buildings) if (Objects.equals(ex.getId(), b.getId())) { exists = true; break; }
             if (!exists) buildings.add(b);
         }
-        buildingCombo.getItems().setAll(buildings);
-        buildingCombo.getSelectionModel().clearSelection();
+        buildingCombo.setItems(buildings);
+        buildingCombo.getSelectionModel().select(allBuildings); // Select "All Buildings" by default
     }
 
     /**
-     * Renders room cards from roomList into the roomsContainer, applying the selected sort.
-     * Preserves the toolbar as the first child.
+     * Renders room cards from roomList, applying filters.
      */
     private void renderRooms() {
-        // Filter rooms by building/floor/type/status selections
+        // Filter rooms by selections
         Building selectedBuilding = buildingCombo == null ? null : buildingCombo.getValue();
         String selectedFloor = floorCombo == null ? null : floorCombo.getValue();
         String selectedType = typeCombo == null ? null : typeCombo.getValue();
@@ -178,14 +198,15 @@ public class RoomsViewController {
 
         List<Room> filtered = new ArrayList<>();
         for (Room r : roomList) {
-            if (selectedBuilding != null && !Objects.equals(r.getBuildingId(), selectedBuilding.getId())) continue;
-            if (selectedFloor != null && !selectedFloor.isEmpty() && !String.valueOf(r.getFloor()).equals(selectedFloor)) continue;
-            if (selectedType != null && !selectedType.isEmpty() && !Objects.equals(r.getRoomType(), selectedType)) continue;
-            if (selectedStatus != null && !selectedStatus.isEmpty() && !Objects.equals(r.getStatus(), selectedStatus)) continue;
+            // Apply filters
+            if (selectedBuilding != null && selectedBuilding.getId() != null && !Objects.equals(r.getBuildingId(), selectedBuilding.getId())) continue;
+            if (selectedFloor != null && !selectedFloor.equals("All Floors") && !String.valueOf(r.getFloor()).equals(selectedFloor)) continue;
+            if (selectedType != null && !selectedType.equals("All Types") && !Objects.equals(r.getRoomType(), selectedType)) continue;
+            if (selectedStatus != null && !selectedStatus.equals("All Statuses") && !Objects.equals(r.getStatus(), selectedStatus)) continue;
             filtered.add(r);
         }
 
-        // For now, order by room number within the filtered set
+        // Sort by room number
         filtered.sort(Comparator.comparing(r -> safeString(r.getRoomNumber())));
 
         Platform.runLater(() -> {
@@ -203,9 +224,8 @@ public class RoomsViewController {
 
     @FXML
     private void onAddRoomClick() {
-        // --- 1. First, get a list of available buildings for the ComboBox ---
         ObservableList<Building> buildings = FXCollections.observableArrayList();
-        ApiFuture<QuerySnapshot> buildingsFuture = com.dtdt.DormManager.controller.config.FirebaseInit.db.collection("buildings").get();
+        ApiFuture<QuerySnapshot> buildingsFuture = FirebaseInit.db.collection("buildings").get();
         buildingsFuture.addListener(() -> {
             try {
                 for (QueryDocumentSnapshot doc : buildingsFuture.get().getDocuments()) {
@@ -216,26 +236,21 @@ public class RoomsViewController {
             }
         }, Runnable::run);
 
-        // --- 2. Create the Dialog ---
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Add New Room");
         DialogPane pane = dialog.getDialogPane();
         pane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
-        // --- 3. Create Form Fields ---
         ComboBox<Building> buildingComboBox = new ComboBox<>(buildings);
         buildingComboBox.setPromptText("Select Building");
-        // Use a cell factory to show building names in the dropdown
         buildingComboBox.setCellFactory(lv -> new ListCell<>() {
-            @Override
-            protected void updateItem(Building item, boolean empty) {
+            @Override protected void updateItem(Building item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty ? null : item.getName());
             }
         });
         buildingComboBox.setButtonCell(new ListCell<>() {
-            @Override
-            protected void updateItem(Building item, boolean empty) {
+            @Override protected void updateItem(Building item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty ? null : item.getName());
             }
@@ -259,40 +274,59 @@ public class RoomsViewController {
         content.setStyle("-fx-padding: 10;");
         pane.setContent(content);
 
-        // --- 4. Handle Dialog Submission ---
         Optional<ButtonType> result = dialog.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
                 Building selectedBuilding = buildingComboBox.getValue();
+                if (selectedBuilding == null) throw new Exception("Building must be selected.");
 
                 Room newRoom = new Room();
                 newRoom.setBuildingId(selectedBuilding.getId());
-                newRoom.setBuildingName(selectedBuilding.getName()); // Denormalize name
+                newRoom.setBuildingName(selectedBuilding.getName());
                 newRoom.setRoomNumber(roomNumberField.getText());
                 newRoom.setFloor(Integer.parseInt(floorField.getText()));
                 newRoom.setRoomType(typeField.getText());
                 newRoom.setRate(Double.parseDouble(rateField.getText()));
                 newRoom.setCapacity(Integer.parseInt(capacityField.getText()));
-                newRoom.setStatus("Available"); // Default status
+                newRoom.setStatus("Available");
 
-                // --- 5. Save to Firebase ---
                 String newRoomId = UUID.randomUUID().toString();
-                newRoom.setId(newRoomId); // ensure the model has its id set locally
-                DocumentReference docRef = com.dtdt.DormManager.controller.config.FirebaseInit.db.collection("rooms").document(newRoomId);
+                newRoom.setId(newRoomId);
+                DocumentReference docRef = FirebaseInit.db.collection("rooms").document(newRoomId);
                 docRef.set(newRoom);
 
-                // Add new card to UI immediately and local list
                 roomList.add(newRoom);
                 RoomStore.getInstance().addRoom(newRoom);
-                 // After adding a room, refresh building list and dependent filters
-                 populateBuildings();
-                 renderRooms();
+                populateBuildings();
+                renderRooms();
 
             } catch (Exception e) {
                 e.printStackTrace();
-                // TODO: Show an error alert
+                // --- TODO FIX: Show an error alert ---
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error");
+                alert.setHeaderText("Failed to Add Room");
+                alert.setContentText("Please check your inputs and try again. " + e.getMessage());
+                alert.showAndWait();
+                // --- END FIX ---
             }
         }
+    }
+
+    /**
+     * Gets the current occupancy count for a specific room.
+     * @param roomId The ID of the room to check.
+     * @return The number of tenants assigned to that room.
+     */
+    private int getOccupancyForRoom(String roomId) {
+        int count = 0;
+        if (roomId == null) return 0;
+        for (Tenant tenant : tenantList) {
+            if (roomId.equals(tenant.getRoomID())) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private VBox createRoomCard(Room room) {
@@ -308,12 +342,15 @@ public class RoomsViewController {
         Label roomName = new Label("Room " + room.getRoomNumber());
         roomName.setStyle("-fx-font-size: 18; -fx-font-weight: bold;");
 
-        boolean isOccupied = "Occupied".equalsIgnoreCase(room.getStatus());
-        Label status = new Label(room.getStatus());
-        status.setStyle(isOccupied ?
-                "-fx-background-color: #FFEBEE; -fx-text-fill: #C62828; -fx-padding: 4 8; -fx-background-radius: 4;" :
-                "-fx-background-color: #E8F5E9; -fx-text-fill: #2E7D32; -fx-padding: 4 8; -fx-background-radius: 4;");
-        // TODO: Add style for "Maintenance"
+        String statusText = room.getStatus() == null ? "Available" : room.getStatus();
+        Label status = new Label(statusText);
+        if ("Occupied".equalsIgnoreCase(statusText)) {
+            status.setStyle("-fx-background-color: #FFEBEE; -fx-text-fill: #C62828; -fx-padding: 4 8; -fx-background-radius: 4;");
+        } else if ("Maintenance".equalsIgnoreCase(statusText)) {
+            status.setStyle("-fx-background-color: #FFF8E1; -fx-text-fill: #F9A825; -fx-padding: 4 8; -fx-background-radius: 4;");
+        } else { // Available
+            status.setStyle("-fx-background-color: #E8F5E9; -fx-text-fill: #2E7D32; -fx-padding: 4 8; -fx-background-radius: 4;");
+        }
 
         Pane spacer = new Pane();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -330,7 +367,9 @@ public class RoomsViewController {
         addDetailRow(details, 1, "Floor:", room.getFloor() + "");
         addDetailRow(details, 2, "Type:", room.getRoomType());
         addDetailRow(details, 3, "Rate:", "₱" + room.getRate() + "/mo");
-        addDetailRow(details, 4, "Capacity:", "0/" + room.getCapacity()); // TODO: Track current occupancy
+
+        int currentOccupancy = getOccupancyForRoom(room.getId());
+        addDetailRow(details, 4, "Capacity:", currentOccupancy + "/" + room.getCapacity());
 
         HBox actions = new HBox(10);
         actions.setAlignment(Pos.CENTER_RIGHT);
@@ -344,24 +383,37 @@ public class RoomsViewController {
         MenuItem editItem = new MenuItem("Edit");
         editItem.setOnAction(e -> openEditRoomDialog(room));
         MenuItem deleteItem = createDeleteMenuItem(room.getId(), card);
-        MenuItem statusToggle = new MenuItem(isOccupied ? "Mark as Available" : "Mark as Occupied");
+
+        // --- START FIX ---
+        // We check the status when the menu item is created to set the text
+        boolean isCurrentlyOccupied = "Occupied".equalsIgnoreCase(room.getStatus());
+        MenuItem statusToggle = new MenuItem(isCurrentlyOccupied ? "Mark as Available" : "Mark as Occupied");
+
         statusToggle.setOnAction(e -> {
-            // Toggle status locally and in Firestore
-            String newStatus = isOccupied ? "Available" : "Occupied";
+            // But here, we check the status *again* to be 100% sure
+            boolean stillOccupied = "Occupied".equalsIgnoreCase(room.getStatus());
+            String newStatus = stillOccupied ? "Available" : "Occupied";
+
             try {
                 Map<String, Object> updates = new HashMap<>();
                 updates.put("status", newStatus);
-                com.dtdt.DormManager.controller.config.FirebaseInit.db.collection("rooms").document(room.getId()).update(updates);
-                // Update local model and RoomStore
+                FirebaseInit.db.collection("rooms").document(room.getId()).update(updates);
+
+                // Update local model
                 room.setStatus(newStatus);
-                for (Room r : roomList) if (Objects.equals(r.getId(), room.getId())) r.setStatus(newStatus);
+
+                // Update RoomStore using your pattern
                 RoomStore.getInstance().removeById(room.getId());
                 RoomStore.getInstance().addRoom(room);
+
+                // Re-render all cards to reflect the change
                 renderRooms();
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
         });
+        // --- END FIX ---
+
         more.getItems().addAll(editItem, deleteItem, statusToggle);
 
         actions.getChildren().addAll(viewDetails, more);
@@ -369,10 +421,13 @@ public class RoomsViewController {
         return card;
     }
 
-    // Opens a small dialog to edit only the room type (and adjust capacity automatically)
+    /**
+     * Opens a dialog to edit Room Type and Rate.
+     * Capacity is still auto-calculated from Room Type.
+     */
     private void openEditRoomDialog(Room room) {
         Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Edit Room Type");
+        dialog.setTitle("Edit Room");
         DialogPane pane = dialog.getDialogPane();
         pane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
@@ -380,33 +435,41 @@ public class RoomsViewController {
         typeSelect.getItems().addAll("Single", "Shared(D)", "Shared");
         typeSelect.setValue(room.getRoomType() == null ? "Single" : room.getRoomType());
 
-        VBox content = new VBox(10, new Label("Room Type:"), typeSelect);
+        TextField rateField = new TextField(String.valueOf(room.getRate()));
+        rateField.setPromptText("Rate per bed");
+
+        VBox content = new VBox(10,
+                new Label("Room Type:"), typeSelect,
+                new Label("Rate (per bed):"), rateField
+        );
         content.setStyle("-fx-padding: 10;");
         pane.setContent(content);
 
         Optional<ButtonType> result = dialog.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
-            String newType = typeSelect.getValue();
-            int newCapacity = capacityForType(newType);
-
-            // Prepare updates
             try {
+                String newType = typeSelect.getValue();
+                int newCapacity = capacityForType(newType);
+                double newRate = Double.parseDouble(rateField.getText());
+
                 Map<String, Object> updates = new HashMap<>();
                 updates.put("roomType", newType);
                 updates.put("capacity", newCapacity);
+                updates.put("rate", newRate);
 
-                // Update Firestore
-                com.dtdt.DormManager.controller.config.FirebaseInit.db.collection("rooms").document(room.getId()).update(updates).addListener(() -> {
+                FirebaseInit.db.collection("rooms").document(room.getId()).update(updates).addListener(() -> {
                     Platform.runLater(() -> {
                         // Update local model
                         room.setRoomType(newType);
                         room.setCapacity(newCapacity);
-                        // update roomList
-                        for (Room r : roomList) if (Objects.equals(r.getId(), room.getId())) { r.setRoomType(newType); r.setCapacity(newCapacity); }
-                        // update RoomStore
+                        room.setRate(newRate);
+
+                        // --- THIS IS THE FIX ---
+                        // Use the correct remove/add pattern
                         RoomStore.getInstance().removeById(room.getId());
                         RoomStore.getInstance().addRoom(room);
-                        // Re-render UI
+                        // --- END FIX ---
+
                         renderRooms();
                     });
                 }, Runnable::run);
@@ -431,18 +494,25 @@ public class RoomsViewController {
     private MenuItem createDeleteMenuItem(String documentId, Node cardToRemove) {
         MenuItem deleteItem = new MenuItem("Delete");
         deleteItem.setOnAction(e -> {
-            // TODO: Add "Are you sure?" confirmation
+            // --- TODO FIX: Add "Are you sure?" confirmation ---
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Confirm Deletion");
+            alert.setHeaderText("Delete Room");
+            alert.setContentText("Are you sure you want to delete this room? This action cannot be undone.");
 
-            ApiFuture<WriteResult> deleteFuture = com.dtdt.DormManager.controller.config.FirebaseInit.db.collection("rooms").document(documentId).delete();
-            deleteFuture.addListener(() -> {
-                Platform.runLater(() -> {
-                    roomsContainer.getChildren().remove(cardToRemove);
-                    // Also remove from local list
-                    roomList.removeIf(r -> Objects.equals(r.getId(), documentId));
-                    // Also update the central store
-                    RoomStore.getInstance().removeById(documentId);
-                });
-            }, Runnable::run);
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                // User clicked OK, proceed with delete
+                ApiFuture<WriteResult> deleteFuture = FirebaseInit.db.collection("rooms").document(documentId).delete();
+                deleteFuture.addListener(() -> {
+                    Platform.runLater(() -> {
+                        roomsContainer.getChildren().remove(cardToRemove);
+                        roomList.removeIf(r -> Objects.equals(r.getId(), documentId));
+                        RoomStore.getInstance().removeById(documentId);
+                    });
+                }, Runnable::run);
+            }
+            // --- END FIX ---
         });
         return deleteItem;
     }
