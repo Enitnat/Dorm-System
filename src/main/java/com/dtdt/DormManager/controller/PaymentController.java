@@ -1,36 +1,56 @@
 package com.dtdt.DormManager.controller;
 
 import com.dtdt.DormManager.Main;
+import com.dtdt.DormManager.model.Contract;
+import com.dtdt.DormManager.model.Invoice;
+import com.dtdt.DormManager.model.Room;
 import com.dtdt.DormManager.model.Tenant;
 import com.dtdt.DormManager.controller.config.FirebaseInit;
+import com.google.api.core.ApiFuture;
+import com.google.cloud.firestore.DocumentReference;
+import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
-import javafx.fxml.FXML;
+import com.google.cloud.firestore.QuerySnapshot;
 import javafx.application.Platform;
-import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.layout.VBox;
-import javafx.scene.layout.HBox;
 import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
+import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+import javafx.util.StringConverter;
 
-import java.io.IOException;
 import java.io.File;
 import java.io.FileWriter;
-import java.util.HashMap;
-import java.util.Map;
-import com.google.api.core.ApiFuture;
-import java.util.concurrent.Executors;
+import java.io.IOException;
+import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+// --- ADD THESE IMPORTS ---
+import com.dtdt.DormManager.controller.TenantProfileController;
+import com.google.cloud.firestore.QueryDocumentSnapshot;
+import javafx.scene.layout.Priority;
+// --- END IMPORTS ---
 
 public class PaymentController {
 
     private Tenant currentTenant;
+    private Contract currentContract;
+    private Room currentRoom;
+    private final Firestore db = FirebaseInit.db;
+    private final List<Invoice> invoiceList = new ArrayList<>();
+
+    // Formatters
+    private final SimpleDateFormat dateFormatter = new SimpleDateFormat("MMMM dd, yyyy");
+    private final SimpleDateFormat monthYearFormatter = new SimpleDateFormat("MMMM yyyy");
+    private final NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("en", "PH"));
 
     // === FXML Header Components ===
     @FXML private Label tenantNameLabel;
@@ -42,720 +62,387 @@ public class PaymentController {
     @FXML private Label contractDatesLabel;
 
     // === FXML Page-Specific Components ===
-    @FXML private ComboBox<String> receiptComboBox;
+    @FXML private ComboBox<Invoice> receiptComboBox;
     @FXML private VBox billingHistoryVBox;
     @FXML private Label validationMessageLabel;
 
-    // payment method buttons
-    @FXML private Button gcashButton;
-    @FXML private Button bpiButton;
-    @FXML private Button bdoButton;
-    @FXML private Button metroButton;
-    @FXML private Button makePaymentButton;
-
-    // currently selected payment method (text)
-    private String selectedMethod = null;
-    
-    // currently selected month
-    private String selectedMonth = null;
-    
-    // Map to track month boxes and their status (UNPAID or PAID)
-    private Map<String, HBox> monthButtons = new HashMap<>();
-    private Map<String, String> monthStatus = new HashMap<>();
-    
-    // Map to store payment details for each month (for PDF generation and Firebase)
-    private Map<String, PaymentDetails> paymentRecords = new HashMap<>();
-
-    /**
-     * Handler for the payment option buttons in the main view. Makes clicked button black with white text,
-     * and resets the others to white with black text.
-     */
     @FXML
-    private void selectPaymentMethod(ActionEvent event) {
-        Object src = event.getSource();
-        // Reset all to default
-        resetPaymentButtonStyle(gcashButton);
-        resetPaymentButtonStyle(bpiButton);
-        resetPaymentButtonStyle(bdoButton);
-        resetPaymentButtonStyle(metroButton);
-
-        // Style the clicked button as selected
-        if (src == gcashButton) {
-            setSelectedStyle(gcashButton);
-            selectedMethod = "Gcash";
-        } else if (src == bpiButton) {
-            setSelectedStyle(bpiButton);
-            selectedMethod = "BPI";
-        } else if (src == bdoButton) {
-            setSelectedStyle(bdoButton);
-            selectedMethod = "BDO";
-        } else if (src == metroButton) {
-            setSelectedStyle(metroButton);
-            selectedMethod = "Metrobank";
-        }
-        
-        // Update button state and validation
-        updateMakePaymentButtonState();
-    }
-
-    private void resetPaymentButtonStyle(Button btn) {
-        if (btn == null) return;
-        btn.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-border-color: #E0E0E0;");
-    }
-
-    private void setSelectedStyle(Button btn) {
-        if (btn == null) return;
-        btn.setStyle("-fx-background-color: black; -fx-text-fill: white;");
-    }
-    
-    /**
-     * Create and populate month tabs for billing
-     */
-    private void createMonthTabs() {
-        // The month tabs are now in the scrollpane as HBox items
-        // We need to make them clickable by adding event handlers
-        
-        String[] months = {"July 2025", "August 2025", "September 2025", "October 2025", "November 2025", "December 2025"};
-        
-        // Get all HBox children from the billingHistoryVBox
-        for (int i = 0; i < billingHistoryVBox.getChildren().size(); i++) {
-            if (billingHistoryVBox.getChildren().get(i) instanceof HBox) {
-                HBox monthBox = (HBox) billingHistoryVBox.getChildren().get(i);
-                String month = months[i];
-                
-                // Check if status was already loaded from Firebase, otherwise default to UNPAID
-                String status = monthStatus.getOrDefault(month, "UNPAID");
-                
-                monthButtons.put(month, monthBox);
-                
-                // Update the UI based on status
-                updateMonthBoxUI(month, monthBox, status);
+    public void initialize() {
+        receiptComboBox.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Invoice invoice) {
+                return invoice == null ? "Select a paid invoice" : invoice.getMonthYear();
             }
-        }
-    }
-    
-    /**
-     * Update the UI of a month box based on its status
-     */
-    private void updateMonthBoxUI(String month, HBox monthBox, String status) {
-        monthStatus.put(month, status);
-        
-        if (status.equals("PAID")) {
-            // Disable and gray out paid months
-            monthBox.setDisable(true);
-            monthBox.setStyle("-fx-border-color: #E0E0E0; -fx-border-width: 0 0 1 0; -fx-padding: 0 0 15 0; -fx-cursor: default; -fx-opacity: 0.7;");
-            
-            // Update the status label in the HBox
-            updateStatusLabel(monthBox, "PAID", "#008000");
-        } else {
-            // Enable UNPAID months
-            monthBox.setDisable(false);
-            monthBox.setStyle("-fx-border-color: #E0E0E0; -fx-border-width: 0 0 1 0; -fx-padding: 0 0 15 0; -fx-cursor: hand;");
-            monthBox.setOnMouseClicked(event -> selectMonth(month, monthBox));
-            
-            // Update the status label in the HBox
-            updateStatusLabel(monthBox, "UNPAID", "#D8000C");
-        }
-    }
-    
-    /**
-     * Update the status label inside a month HBox
-     */
-    private void updateStatusLabel(HBox monthBox, String status, String color) {
-        for (javafx.scene.Node node : monthBox.getChildren()) {
-            if (node instanceof VBox) {
-                VBox vbox = (VBox) node;
-                boolean foundStatusHBox = false;
-                
-                // Iterate through VBox children to find the status HBox
-                for (javafx.scene.Node child : vbox.getChildren()) {
-                    if (child instanceof HBox) {
-                        HBox statusHBox = (HBox) child;
-                        
-                        // Check if first child is the "Current Status:" label
-                        if (statusHBox.getChildren().size() >= 2) {
-                            javafx.scene.Node firstNode = statusHBox.getChildren().get(0);
-                            if (firstNode instanceof Label) {
-                                Label firstLabel = (Label) firstNode;
-                                // Only process the status HBox (the one with "Current Status:" label)
-                                if (firstLabel.getText().equals("Current Status:")) {
-                                    javafx.scene.Node statusNode = statusHBox.getChildren().get(1);
-                                    if (statusNode instanceof Label) {
-                                        Label statusLabel = (Label) statusNode;
-                                        statusLabel.setText(status);
-                                        statusLabel.setStyle("-fx-text-fill: " + color + "; -fx-font-weight: bold;");
-                                    }
-                                    foundStatusHBox = true;
-                                    break; // Found and updated the status, exit
-                                }
-                            }
-                        }
-                    }
-                    if (foundStatusHBox) break;
-                }
-            }
-        }
-    }
-    
-    /**
-     * Handle month selection from the HBox items
-     */
-    private void selectMonth(String month, HBox monthBox) {
-        // Reset all month boxes to default style
-        for (HBox box : monthButtons.values()) {
-            if (box != null && !box.isDisabled()) {
-                box.setStyle("-fx-border-color: #E0E0E0; -fx-border-width: 0 0 1 0; -fx-padding: 0 0 15 0; -fx-cursor: hand;");
-            }
-        }
-        
-        // Highlight the selected month
-        if (monthBox != null) {
-            monthBox.setStyle("-fx-border-color: #1A1A1A; -fx-border-width: 0 0 3 0; -fx-padding: 0 0 15 0; -fx-background-color: #F0F0F0; -fx-cursor: hand;");
-            selectedMonth = month;
-        }
-        
-        // Update button state and validation
-        updateMakePaymentButtonState();
-    }
-    
-    /**
-     * Update the state of the Make Payment button based on selections
-     */
-    private void updateMakePaymentButtonState() {
-        if (selectedMethod != null && selectedMonth != null) {
-            // Both selected - enable the button
-            makePaymentButton.setDisable(false);
-            makePaymentButton.setStyle("-fx-background-color: #1A1A1A; -fx-text-fill: WHITE; -fx-cursor: hand;");
-            validationMessageLabel.setText("");
-            validationMessageLabel.setStyle("");
-        } else {
-            // Missing selection - disable the button
-            makePaymentButton.setDisable(true);
-            makePaymentButton.setStyle("-fx-background-color: #D3D3D3; -fx-text-fill: #666666; -fx-cursor: default;");
-            
-            // Show appropriate message
-            if (selectedMethod == null && selectedMonth == null) {
-                validationMessageLabel.setText("⚠ Please choose a payment method and a month to pay for");
-                validationMessageLabel.setStyle("-fx-text-fill: #D8000C; -fx-font-weight: bold;");
-            } else if (selectedMethod == null) {
-                validationMessageLabel.setText("⚠ Please choose a payment method");
-                validationMessageLabel.setStyle("-fx-text-fill: #D8000C; -fx-font-weight: bold;");
-            } else {
-                validationMessageLabel.setText("⚠ Please choose a month to pay for");
-                validationMessageLabel.setStyle("-fx-text-fill: #D8000C; -fx-font-weight: bold;");
-            }
-        }
-    }
-    
-    /**
-     * Mark a month as PAID by updating its status and disabling it
-     */
-    private void markMonthAsPaid(String month) {
-        HBox monthBox = monthButtons.get(month);
-        if (monthBox != null) {
-            // Update UI and status using the centralized method
-            updateMonthBoxUI(month, monthBox, "PAID");
-            
-            // Also save the status to Firebase
-            saveMonthStatusToFirebase(month, "PAID");
-        }
-    }
-    
-    /**
-     * Save month status to Firebase
-     */
-    private void saveMonthStatusToFirebase(String month, String status) {
-        try {
-            Firestore db = FirebaseInit.getDatabase();
-            if (db == null) {
-                System.err.println("Firebase database not initialized");
-                return;
-            }
-            
-            // Create a map with just the status
-            Map<String, Object> statusMap = new HashMap<>();
-            statusMap.put("status", status);
-            
-            // Save status to: payments/[userId]/status/[month]
-            String documentId = month.replace(" ", "_").replace(",", "");
-            ApiFuture<com.google.cloud.firestore.WriteResult> future = db.collection("payments")
-                    .document(currentTenant.getUserId())
-                    .collection("status")
-                    .document(documentId)
-                    .set(statusMap);
-            
-            // This will execute asynchronously
-            future.addListener(() -> {
-                try {
-                    future.get();
-                    System.out.println("Payment status saved to Firebase for: " + month + " -> " + status);
-                } catch (Exception e) {
-                    System.err.println("Error saving payment status to Firebase: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            }, Executors.newSingleThreadExecutor());
-        } catch (Exception e) {
-            System.err.println("Error in saveMonthStatusToFirebase: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Reset all payment method buttons to default style
-     */
-    private void resetPaymentMethodButtons() {
-        resetPaymentButtonStyle(gcashButton);
-        resetPaymentButtonStyle(bpiButton);
-        resetPaymentButtonStyle(bdoButton);
-        resetPaymentButtonStyle(metroButton);
+            @Override
+            public Invoice fromString(String string) { return null; }
+        });
     }
 
-    // Handler to open payment dialog
-    @FXML
-    private void openPaymentDialog(ActionEvent event) {
-        // Validate selections before opening dialog
-        if (selectedMethod == null || selectedMonth == null) {
-            if (selectedMethod == null && selectedMonth == null) {
-                validationMessageLabel.setText("⚠ Please choose a payment method and a month to pay for");
-            } else if (selectedMethod == null) {
-                validationMessageLabel.setText("⚠ Please choose a payment method");
-            } else {
-                validationMessageLabel.setText("⚠ Please choose a month to pay for");
-            }
-            validationMessageLabel.setStyle("-fx-text-fill: #D8000C; -fx-font-weight: bold;");
-            return;
-        }
-        
-        try {
-            FXMLLoader loader = new FXMLLoader(Main.class.getResource("/com/dtdt/DormManager/view/payment-dialog.fxml"));
-            Parent dialogRoot = loader.load();
-
-            // Create a new stage for the popup
-            Stage dialogStage = new Stage();
-            dialogStage.initModality(Modality.APPLICATION_MODAL);
-            dialogStage.setTitle("Make Payment");
-            dialogStage.setScene(new Scene(dialogRoot));
-
-            // Pass the stage to the dialog controller so it can close itself
-            PaymentDialogController dialogController = loader.getController();
-            dialogController.setDialogStage(dialogStage);
-            // Pass currently selected method from main view buttons
-            if (selectedMethod != null) dialogController.setSelectedMethod(selectedMethod);
-            // Pass selected month
-            if (selectedMonth != null) dialogController.setSelectedMonth(selectedMonth);
-
-            dialogStage.showAndWait();
-
-            PaymentDialogController.PaymentResult result = dialogController.getResult();
-            if (result != null) {
-                // For now, just print the result. Integrate with backend/payment logic here.
-                System.out.println("Payment submitted: " + result);
-                
-                // Store payment details for this month
-                PaymentDetails details = new PaymentDetails(
-                    selectedMonth,
-                    result.amount,
-                    result.method,
-                    result.reference,
-                    result.payerName,
-                    new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date())
-                );
-                paymentRecords.put(selectedMonth, details);
-                
-                // Save to Firebase
-                savePaymentToFirebase(details);
-                
-                // Mark the selected month as PAID
-                markMonthAsPaid(selectedMonth);
-                
-                // Update receipt combo box to show only paid months
-                updateReceiptComboBox();
-                
-                // Clear selections after successful submission
-                validationMessageLabel.setText("✓ Payment submitted successfully!");
-                validationMessageLabel.setStyle("-fx-text-fill: #008000; -fx-font-weight: bold;");
-                
-                // Reset selections
-                selectedMethod = null;
-                selectedMonth = null;
-                resetPaymentMethodButtons();
-                updateMakePaymentButtonState();
-                
-                // TODO: Update UI, show confirmation, etc.
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * This method will be called by the previous controller (or Login)
-     * to pass in the currently logged-in tenant.
-     */
     public void initData(Tenant tenant) {
-        currentTenant = tenant;
-
-        // 1. Populate Header
+        this.currentTenant = tenant;
         tenantNameLabel.setText(currentTenant.getFullName());
         tenantIdLabel.setText(currentTenant.getUserId());
         tenantEmailLabel.setText(currentTenant.getEmail());
+        loadLinkedData();
+    }
 
-        // 2. Populate Building/Room Info (Dummy Data)
-        // TODO: Get this info from the tenant's record
-        buildingLabel.setText("Building A");
-        roomLabel.setText("Room 5210");
-        contractTypeLabel.setText("6-Month Term");
-        contractDatesLabel.setText("July 2025 - December 2025");
+    private void loadLinkedData() {
+        if (currentTenant.getContractID() == null) {
+            billingHistoryVBox.getChildren().add(new Label("You do not have an active contract."));
+            return;
+        }
 
-        // 3. Load dynamic content
-        loadBillingHistory();
-        
-        // 4. Create month tabs
-        createMonthTabs();
-        
-        // 5. Load payment records from Firebase
-        loadPaymentRecordsFromFirebase();
-        
-        // 6. Initialize validation state
-        validationMessageLabel.setText("⚠ Please choose a payment method and a month to pay for");
-        validationMessageLabel.setStyle("-fx-text-fill: #D8000C; -fx-font-weight: bold;");
-        makePaymentButton.setDisable(true);
-        makePaymentButton.setStyle("-fx-background-color: #D3D3D3; -fx-text-fill: #666666; -fx-cursor: default;");
+        DocumentReference contractRef = db.collection("contracts").document(currentTenant.getContractID());
+        ApiFuture<DocumentSnapshot> contractFuture = contractRef.get();
+
+        contractFuture.addListener(() -> {
+            try {
+                DocumentSnapshot contractDoc = contractFuture.get();
+                if (contractDoc.exists()) {
+                    this.currentContract = contractDoc.toObject(Contract.class);
+
+                    DocumentReference roomRef = db.collection("rooms").document(currentTenant.getRoomID());
+                    ApiFuture<DocumentSnapshot> roomFuture = roomRef.get();
+                    roomFuture.addListener(() -> {
+                        try {
+                            DocumentSnapshot roomDoc = roomFuture.get();
+                            if (roomDoc.exists()) {
+                                this.currentRoom = roomDoc.toObject(Room.class);
+                            }
+                            Platform.runLater(() -> {
+                                populateHeader();
+                                loadBillingHistory();
+                            });
+                        } catch (Exception e) { e.printStackTrace(); }
+                    }, Runnable::run);
+                } else {
+                    Platform.runLater(() -> billingHistoryVBox.getChildren().add(new Label("Error: Contract not found.")));
+                }
+            } catch (Exception e) { e.printStackTrace(); }
+        }, Runnable::run);
+    }
+
+    private void populateHeader() {
+        if (currentRoom != null) {
+            buildingLabel.setText(currentRoom.getBuildingName());
+            roomLabel.setText("Room " + currentRoom.getRoomNumber());
+        } else {
+            buildingLabel.setText("N/A");
+            roomLabel.setText("N/A");
+        }
+
+        if (currentContract != null) {
+            contractTypeLabel.setText(currentContract.getContractType());
+            String dates = dateFormatter.format(currentContract.getStartDate()) + " - " +
+                    dateFormatter.format(currentContract.getEndDate());
+            contractDatesLabel.setText(dates);
+        } else {
+            contractTypeLabel.setText("N/A");
+            contractDatesLabel.setText("N/A");
+        }
     }
 
     private void loadBillingHistory() {
-        // TODO: Fetch this tenant's billing history from the database
-        // You would clear the dummy data first:
-        // billingHistoryVBox.getChildren().clear();
+        billingHistoryVBox.getChildren().clear();
+        invoiceList.clear();
 
-        // Then add new ones:
-        // HBox billCard = createBillingCard("October 2025", "PENDING", 5000.00);
-        // billingHistoryVBox.getChildren().add(billCard);
+        ApiFuture<QuerySnapshot> future = db.collection("invoices")
+                .whereEqualTo("tenantId", currentTenant.getUserId())
+                .get();
+
+        future.addListener(() -> {
+            try {
+                List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+                if (documents.isEmpty()) {
+                    System.out.println("No invoices found, generating...");
+                    generateInvoices();
+                } else {
+                    System.out.println("Found " + documents.size() + " invoices.");
+                    for (QueryDocumentSnapshot doc : documents) {
+                        invoiceList.add(doc.toObject(Invoice.class));
+                    }
+                    Platform.runLater(this::displayInvoices);
+                }
+            } catch (Exception e) { e.printStackTrace(); }
+        }, Runnable::run);
     }
 
     /**
-     * FXML Action: Called when "Dashboard" hyperlink is clicked.
+     * [FIXED] Generates invoices based on contract type.
      */
+    private void generateInvoices() {
+        List<Invoice> newInvoices = new ArrayList<>();
+        String contractType = currentContract.getContractType();
+
+        // --- THIS IS THE NEW LOGIC ---
+        if ("Monthly".equalsIgnoreCase(contractType)) {
+            // --- 1. MONTHLY PAYMENT LOGIC ---
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(currentContract.getStartDate());
+            Date endDate = currentContract.getEndDate();
+
+            while (cal.getTime().before(endDate) || cal.getTime().equals(endDate)) {
+                String monthYear = monthYearFormatter.format(cal.getTime());
+                cal.set(Calendar.DAY_OF_MONTH, 5);
+                Date dueDate = cal.getTime();
+
+                Invoice invoice = new Invoice();
+                invoice.setId(UUID.randomUUID().toString());
+                invoice.setTenantId(currentTenant.getUserId());
+                invoice.setContractId(currentContract.getId());
+                invoice.setMonthYear(monthYear);
+                invoice.setRentAmount(currentContract.getRentAmount());
+                invoice.setLateFee(0);
+                invoice.setTotalAmount(currentContract.getRentAmount());
+                invoice.setDueDate(dueDate);
+                invoice.setStatus("Pending");
+
+                newInvoices.add(invoice);
+                db.collection("invoices").document(invoice.getId()).set(invoice);
+
+                cal.set(Calendar.DAY_OF_MONTH, 1);
+                cal.add(Calendar.MONTH, 1);
+            }
+        } else {
+            // --- 2. FULL PAYMENT (SEMESTERLY) LOGIC ---
+            double totalRent = currentContract.getRentAmount() * 6; // Rate x 6 months
+
+            // Set due date to the 5th of the start month
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(currentContract.getStartDate());
+            cal.set(Calendar.DAY_OF_MONTH, 5);
+            Date dueDate = cal.getTime();
+
+            // Create a descriptive name
+            String monthYear = "Full Semester (" +
+                    monthYearFormatter.format(currentContract.getStartDate()) + " - " +
+                    monthYearFormatter.format(currentContract.getEndDate()) + ")";
+
+            Invoice invoice = new Invoice();
+            invoice.setId(UUID.randomUUID().toString());
+            invoice.setTenantId(currentTenant.getUserId());
+            invoice.setContractId(currentContract.getId());
+            invoice.setMonthYear(monthYear);
+            invoice.setRentAmount(totalRent);
+            invoice.setLateFee(0);
+            invoice.setTotalAmount(totalRent);
+            invoice.setDueDate(dueDate);
+            invoice.setStatus("Pending");
+
+            newInvoices.add(invoice);
+            db.collection("invoices").document(invoice.getId()).set(invoice);
+        }
+        // --- END OF NEW LOGIC ---
+
+        invoiceList.addAll(newInvoices);
+        Platform.runLater(this::displayInvoices);
+    }
+
+    /**
+     * Renders the list of invoices to the UI, checking for late fees.
+     */
+    private void displayInvoices() {
+        billingHistoryVBox.getChildren().clear();
+        receiptComboBox.getItems().clear();
+
+        Date today = new Date();
+
+        for (Invoice invoice : invoiceList) {
+            // Check for late fees
+            if (("Pending".equals(invoice.getStatus()) || "Overdue".equals(invoice.getStatus())) && today.after(invoice.getDueDate())) {
+                if (invoice.getLateFee() == 0) { // Only apply late fee once
+                    double rent = invoice.getRentAmount();
+                    double lateFee = rent * 0.10; // 10% late fee
+                    double newTotal = invoice.getTotalAmount() + lateFee;
+
+                    invoice.setLateFee(lateFee);
+                    invoice.setTotalAmount(newTotal);
+                    invoice.setStatus("Overdue");
+
+                    // Update this in Firebase
+                    db.collection("invoices").document(invoice.getId()).update("status", "Overdue", "lateFee", lateFee, "totalAmount", newTotal);
+                }
+            }
+
+            if ("Paid".equals(invoice.getStatus())) {
+                receiptComboBox.getItems().add(invoice);
+            }
+
+            billingHistoryVBox.getChildren().add(createInvoiceCard(invoice));
+        }
+    }
+
+    private HBox createInvoiceCard(Invoice invoice) {
+        Label monthLabel = new Label(invoice.getMonthYear());
+        monthLabel.setStyle("-fx-font-size: 16; -fx-font-weight: bold;");
+
+        Label statusLabel = new Label(invoice.getStatus());
+        if ("Paid".equals(invoice.getStatus())) {
+            statusLabel.setStyle("-fx-text-fill: #008000; -fx-font-weight: bold;");
+        } else if ("Overdue".equals(invoice.getStatus())) {
+            statusLabel.setStyle("-fx-text-fill: #D8000C; -fx-font-weight: bold;");
+        } else {
+            statusLabel.setStyle("-fx-text-fill: #F9A825; -fx-font-weight: bold;");
+        }
+
+        Label amountLabel = new Label(currencyFormatter.format(invoice.getTotalAmount()));
+        amountLabel.setStyle("-fx-font-size: 14;");
+
+        VBox details = new VBox(5, monthLabel, new HBox(10, new Label("Status:"), statusLabel), amountLabel);
+
+        if (invoice.getLateFee() > 0) {
+            Label lateFeeLabel = new Label("Includes " + currencyFormatter.format(invoice.getLateFee()) + " late fee");
+            lateFeeLabel.setStyle("-fx-text-fill: #D8000C; -fx-font-size: 11;");
+            details.getChildren().add(lateFeeLabel);
+        }
+
+        Pane spacer = new Pane();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        if ("Paid".equals(invoice.getStatus())) {
+            Button receiptButton = new Button("View Receipt");
+            receiptButton.setOnAction(e -> handleViewReceipt(invoice));
+            return new HBox(10, details, spacer, receiptButton);
+        } else {
+            Button payButton = new Button("Pay Now");
+            payButton.setStyle("-fx-background-color: #1A1A1A; -fx-text-fill: white; -fx-font-weight: bold;");
+            payButton.setOnAction(e -> handlePayNow(invoice));
+            return new HBox(10, details, spacer, payButton);
+        }
+    }
+
+    private void handlePayNow(Invoice invoice) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Confirm Payment");
+        alert.setHeaderText("Pay for " + invoice.getMonthYear());
+        alert.setContentText("Are you sure you want to pay " + currencyFormatter.format(invoice.getTotalAmount()) + "?");
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("status", "Paid");
+            updates.put("datePaid", new Date());
+
+            db.collection("invoices").document(invoice.getId()).update(updates).addListener(() -> {
+                Platform.runLater(this::loadBillingHistory);
+            }, Runnable::run);
+        }
+    }
+
+    private void handleViewReceipt(Invoice invoice) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Receipt");
+        alert.setHeaderText("Payment for " + invoice.getMonthYear());
+        alert.setContentText(
+                "Amount Paid: " + currencyFormatter.format(invoice.getTotalAmount()) + "\n" +
+                        "Date Paid: " + dateFormatter.format(invoice.getDatePaid())
+        );
+        alert.showAndWait();
+    }
+
+    // --- Navigation Methods ---
+
     @FXML
     private void goToDashboard(ActionEvent event) throws IOException {
-        // 1. Load the dashboard FXML
-        FXMLLoader loader = new FXMLLoader(Main.class.getResource("/com/dtdt/DormManager/view/tenant-dashboard.fxml"));
-        Parent root = loader.load();
-
-        // 2. Get the dashboard controller
-        TenantDashboardController controller = loader.getController();
-
-        // 3. Pass the tenant data BACK to the dashboard
-        controller.initData(this.currentTenant);
-
-        // 4. Get the current stage (window) from the event
-        Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-        stage.getScene().setRoot(root);
-        stage.setTitle("Tenant Dashboard");
-
-
+        loadScene(event, "tenant-dashboard.fxml", "Tenant Dashboard");
     }
 
     @FXML
     private void onProfileClick(ActionEvent event) throws IOException {
-        System.out.println("Profile link clicked.");
-
-        // 1. Load the profile-view.fxml file
-        FXMLLoader loader = new FXMLLoader(Main.class.getResource("/com/dtdt/DormManager/view/tenant-profile-view.fxml"));
-        Parent root = loader.load();
-
-        // 2. Get the controller of the new scene
-        TenantProfileController controller = loader.getController();
-
-        // 3. Pass the *current* tenant data to the new controller
-        controller.initData(this.currentTenant);
-
-        // 4. Get the current stage (window) and change the scene
-        Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-        stage.getScene().setRoot(root);
-        stage.setTitle("Tenant Profile");
+        loadScene(event, "tenant-profile-view.fxml", "Profile");
     }
 
-    /**
-     * FXML Action: Called when "Logout" hyperlink is clicked.
-     */
     @FXML
     private void onLogoutClick() throws IOException {
-        System.out.println("Logout clicked.");
         Main main = new Main();
         main.changeScene("login-view.fxml");
     }
-    
-    /**
-     * Update the receipt combo box to show only paid months
-     */
-    private void updateReceiptComboBox() {
-        receiptComboBox.getItems().clear();
-        for (String month : paymentRecords.keySet()) {
-            if (monthStatus.get(month).equals("PAID")) {
-                receiptComboBox.getItems().add(month);
-            }
-        }
-    }
-    
-    /**
-     * Save PDF receipt for the selected month
-     */
+
     @FXML
     private void savePDF() {
-        String selectedMonth = receiptComboBox.getValue();
-        if (selectedMonth == null) {
-            validationMessageLabel.setText("⚠ Please select a paid month to generate receipt");
-            validationMessageLabel.setStyle("-fx-text-fill: #D8000C; -fx-font-weight: bold;");
+        Invoice selectedInvoice = receiptComboBox.getValue();
+        if (selectedInvoice == null) {
+            validationMessageLabel.setText("Please select a paid invoice from the dropdown.");
+            validationMessageLabel.setVisible(true);
             return;
         }
-        
-        PaymentDetails details = paymentRecords.get(selectedMonth);
-        if (details == null) {
-            validationMessageLabel.setText("⚠ No payment record found for this month");
-            validationMessageLabel.setStyle("-fx-text-fill: #D8000C; -fx-font-weight: bold;");
-            return;
-        }
-        
+
         try {
-            // Create a file chooser to select save location
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("Save Payment Receipt");
             fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
-            fileChooser.setInitialFileName("Receipt_" + currentTenant.getUserId() + "_" + selectedMonth.replace(" ", "_") + ".txt");
-            
-            File file = fileChooser.showSaveDialog(makePaymentButton.getScene().getWindow());
+
+            String monthYear = selectedInvoice.getMonthYear().replace(" ", "_").replaceAll("[^a-zA-Z0-9_-]", "");
+            String fileName = "Receipt_" + currentTenant.getUserId() + "_" + monthYear + ".txt";
+            fileChooser.setInitialFileName(fileName);
+
+            File file = fileChooser.showSaveDialog(receiptComboBox.getScene().getWindow());
+
             if (file != null) {
-                generatePDFReceipt(file, details);
+                generateReceiptFile(file, selectedInvoice);
+
                 validationMessageLabel.setText("✓ Receipt saved successfully!");
+                validationMessageLabel.setVisible(true);
                 validationMessageLabel.setStyle("-fx-text-fill: #008000; -fx-font-weight: bold;");
+            } else {
+                validationMessageLabel.setText("Save operation cancelled.");
+                validationMessageLabel.setVisible(true);
+                validationMessageLabel.setStyle("-fx-text-fill: #555555;");
             }
         } catch (Exception e) {
             validationMessageLabel.setText("⚠ Error saving receipt: " + e.getMessage());
+            validationMessageLabel.setVisible(true);
             validationMessageLabel.setStyle("-fx-text-fill: #D8000C; -fx-font-weight: bold;");
             e.printStackTrace();
         }
     }
-    
-    /**
-     * Generate a text-based PDF receipt
-     */
-    private void generatePDFReceipt(File file, PaymentDetails details) throws IOException {
+
+    private void generateReceiptFile(File file, Invoice invoice) throws IOException {
         try (FileWriter writer = new FileWriter(file)) {
             writer.write("========================================\n");
             writer.write("         PAYMENT RECEIPT\n");
             writer.write("========================================\n\n");
-            
+
             writer.write("Tenant Information:\n");
             writer.write("Name: " + currentTenant.getFullName() + "\n");
             writer.write("ID: " + currentTenant.getUserId() + "\n");
             writer.write("Email: " + currentTenant.getEmail() + "\n\n");
-            
+
             writer.write("Building: " + buildingLabel.getText() + "\n");
             writer.write("Room: " + roomLabel.getText() + "\n\n");
-            
+
             writer.write("Payment Details:\n");
-            writer.write("Month: " + details.month + "\n");
-            writer.write("Amount: ₱" + String.format("%.2f", details.amount) + "\n");
-            writer.write("Payment Method: " + details.paymentMethod + "\n");
-            writer.write("Reference Number: " + (details.referenceNumber != null && !details.referenceNumber.isEmpty() ? details.referenceNumber : "N/A") + "\n");
-            writer.write("Payer Name: " + (details.payerName != null && !details.payerName.isEmpty() ? details.payerName : "N/A") + "\n");
-            writer.write("Payment Date: " + details.paymentDate + "\n\n");
-            
+            writer.write("For: " + invoice.getMonthYear() + "\n");
+            writer.write("Amount Paid: " + currencyFormatter.format(invoice.getTotalAmount()) + "\n");
+            writer.write(" (Rent: " + currencyFormatter.format(invoice.getRentAmount()) + ")\n");
+            if (invoice.getLateFee() > 0) {
+                writer.write(" (Late Fee: " + currencyFormatter.format(invoice.getLateFee()) + ")\n");
+            }
+            writer.write("Payment Date: " + dateFormatter.format(invoice.getDatePaid()) + "\n");
+            writer.write("Status: " + invoice.getStatus() + "\n");
+            writer.write("Invoice ID: " + invoice.getId() + "\n\n");
+
             writer.write("========================================\n");
             writer.write("This is a computer-generated receipt.\n");
             writer.write("========================================\n");
         }
     }
-    
-    /**
-     * Inner class to store payment details
-     */
-    private static class PaymentDetails {
-        String month;
-        double amount;
-        String paymentMethod;
-        String referenceNumber;
-        String payerName;
-        String paymentDate;
-        
-        PaymentDetails(String month, double amount, String paymentMethod, String referenceNumber, String payerName, String paymentDate) {
-            this.month = month;
-            this.amount = amount;
-            this.paymentMethod = paymentMethod;
-            this.referenceNumber = referenceNumber;
-            this.payerName = payerName;
-            this.paymentDate = paymentDate;
+
+    private void loadScene(ActionEvent event, String fxmlFile, String title) throws IOException {
+        FXMLLoader loader = new FXMLLoader(Main.class.getResource("/com/dtdt/DormManager/view/" + fxmlFile));
+        Parent root = loader.load();
+
+        if (title.equals("Tenant Dashboard")) {
+            TenantDashboardController controller = loader.getController();
+            controller.initData(this.currentTenant);
+        } else if (title.equals("Profile")) {
+            com.dtdt.DormManager.controller.TenantProfileController controller = loader.getController();
+            controller.initData(this.currentTenant);
         }
-        
-        // Convert to a Map for Firestore
-        public Map<String, Object> toMap() {
-            Map<String, Object> map = new HashMap<>();
-            map.put("month", this.month);
-            map.put("amount", this.amount);
-            map.put("paymentMethod", this.paymentMethod);
-            map.put("referenceNumber", this.referenceNumber);
-            map.put("payerName", this.payerName);
-            map.put("paymentDate", this.paymentDate);
-            return map;
-        }
-    }
-    
-    /**
-     * Save payment details to Firebase Firestore
-     */
-    private void savePaymentToFirebase(PaymentDetails details) {
-        try {
-            Firestore db = FirebaseInit.getDatabase();
-            if (db == null) {
-                System.err.println("Firebase database not initialized");
-                return;
-            }
-            
-            // Create document in Firestore under: payments/[userId]/months/[month]
-            String documentId = details.month.replace(" ", "_").replace(",", "");
-            ApiFuture<com.google.cloud.firestore.WriteResult> future = db.collection("payments")
-                    .document(currentTenant.getUserId())
-                    .collection("months")
-                    .document(documentId)
-                    .set(details.toMap());
-            
-            // This will execute asynchronously
-            future.addListener(() -> {
-                try {
-                    future.get();
-                    System.out.println("Payment record saved to Firebase for: " + details.month);
-                } catch (Exception e) {
-                    System.err.println("Error saving payment to Firebase: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            }, Executors.newSingleThreadExecutor());
-        } catch (Exception e) {
-            System.err.println("Error in savePaymentToFirebase: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Load payment records from Firebase
-     */
-    private void loadPaymentRecordsFromFirebase() {
-        try {
-            Firestore db = FirebaseInit.getDatabase();
-            if (db == null) {
-                System.err.println("Firebase database not initialized");
-                return;
-            }
-            
-            // First, load payment details
-            ApiFuture<com.google.cloud.firestore.QuerySnapshot> future = db.collection("payments")
-                    .document(currentTenant.getUserId())
-                    .collection("months")
-                    .get();
-            
-            // This will execute asynchronously
-            future.addListener(() -> {
-                try {
-                    com.google.cloud.firestore.QuerySnapshot querySnapshot = future.get();
-                    if (querySnapshot != null) {
-                        querySnapshot.forEach(doc -> {
-                            try {
-                                String month = (String) doc.get("month");
-                                double amount = doc.getDouble("amount");
-                                String method = (String) doc.get("paymentMethod");
-                                String reference = (String) doc.get("referenceNumber");
-                                String payer = (String) doc.get("payerName");
-                                String date = (String) doc.get("paymentDate");
-                                
-                                PaymentDetails details = new PaymentDetails(month, amount, method, reference, payer, date);
-                                paymentRecords.put(month, details);
-                                
-                                System.out.println("Loaded payment record from Firebase: " + month);
-                            } catch (Exception e) {
-                                System.err.println("Error parsing payment record: " + e.getMessage());
-                            }
-                        });
-                    }
-                    
-                    // Then, load payment statuses
-                    loadPaymentStatusesFromFirebase();
-                } catch (Exception e) {
-                    System.err.println("Error loading payments from Firebase: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            }, Executors.newSingleThreadExecutor());
-        } catch (Exception e) {
-            System.err.println("Error in loadPaymentRecordsFromFirebase: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Load payment statuses from Firebase
-     */
-    private void loadPaymentStatusesFromFirebase() {
-        try {
-            Firestore db = FirebaseInit.getDatabase();
-            if (db == null) {
-                System.err.println("Firebase database not initialized");
-                return;
-            }
-            
-            // Fetch all payment statuses for this tenant
-            ApiFuture<com.google.cloud.firestore.QuerySnapshot> future = db.collection("payments")
-                    .document(currentTenant.getUserId())
-                    .collection("status")
-                    .get();
-            
-            // This will execute asynchronously
-            future.addListener(() -> {
-                try {
-                    com.google.cloud.firestore.QuerySnapshot querySnapshot = future.get();
-                    if (querySnapshot != null) {
-                        querySnapshot.forEach(doc -> {
-                            try {
-                                // Convert document ID back to month name
-                                String month = doc.getId().replace("_", " ");
-                                String status = (String) doc.get("status");
-                                
-                                monthStatus.put(month, status);
-                                System.out.println("Loaded payment status from Firebase: " + month + " -> " + status);
-                            } catch (Exception e) {
-                                System.err.println("Error parsing payment status: " + e.getMessage());
-                            }
-                        });
-                    }
-                    
-                    // Update receipt combo box and UI after loading both details and statuses on the FX thread
-                    Platform.runLater(() -> {
-                        updateReceiptComboBox();
-                        updateAllMonthBoxesUI();
-                    });
-                } catch (Exception e) {
-                    System.err.println("Error loading payment statuses from Firebase: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            }, Executors.newSingleThreadExecutor());
-        } catch (Exception e) {
-            System.err.println("Error in loadPaymentStatusesFromFirebase: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Update all month boxes UI based on loaded statuses
-     */
-    private void updateAllMonthBoxesUI() {
-        String[] months = {"July 2025", "August 2025", "September 2025", "October 2025", "November 2025", "December 2025"};
-        
-        for (int i = 0; i < billingHistoryVBox.getChildren().size(); i++) {
-            if (billingHistoryVBox.getChildren().get(i) instanceof HBox) {
-                HBox monthBox = (HBox) billingHistoryVBox.getChildren().get(i);
-                String month = months[i];
-                
-                String status = monthStatus.getOrDefault(month, "UNPAID");
-                updateMonthBoxUI(month, monthBox, status);
-            }
-        }
+
+        Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+        stage.getScene().setRoot(root);
+        stage.setTitle(title);
     }
 }
