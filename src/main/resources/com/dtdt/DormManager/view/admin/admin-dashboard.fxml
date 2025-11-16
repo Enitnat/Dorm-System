@@ -44,6 +44,8 @@
             style="-fx-background-color: transparent; -fx-alignment: CENTER_LEFT;" maxWidth="Infinity"/>
         <Button fx:id="reservationsButton" text="Reservation" onAction="#onReservationsClick"
             style="-fx-background-color: transparent; -fx-alignment: CENTER_LEFT;" maxWidth="Infinity"/>
+        <Button fx:id="announcementsButton" text="Announcements" onAction="#onAnnouncementsClick"
+             style="-fx-background-color: transparent; -fx-alignment: CENTER_LEFT;" maxWidth="Infinity"/>
             </VBox>
         </VBox>
     </left>

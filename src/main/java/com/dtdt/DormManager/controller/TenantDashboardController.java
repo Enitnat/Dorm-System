@@ -2,13 +2,17 @@ package com.dtdt.DormManager.controller;
 
 import com.dtdt.DormManager.Main;
 import com.dtdt.DormManager.controller.config.FirebaseInit;
+import com.dtdt.DormManager.controller.TenantProfileController;
+import com.dtdt.DormManager.model.Announcement;
+import com.dtdt.DormManager.model.Contract;
+import com.dtdt.DormManager.model.Room;
 import com.google.api.core.ApiFuture;
-import com.google.cloud.firestore.Firestore;
-import com.google.cloud.firestore.QuerySnapshot;
-import com.google.cloud.firestore.DocumentSnapshot;
-import com.google.cloud.firestore.WriteResult;
+import com.google.cloud.firestore.*;
 import javafx.application.Platform;
+import java.util.Date;
+import java.util.UUID;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import com.dtdt.DormManager.model.Tenant;
@@ -26,10 +30,13 @@ import javafx.stage.Stage;
 import javafx.fxml.FXMLLoader;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 
 public class TenantDashboardController {
 
     private Tenant currentTenant;
+    private final Firestore db = FirebaseInit.db;
+    private final SimpleDateFormat dateFormatter = new SimpleDateFormat("MMMM dd, yyyy");
 
     // === FXML Components ===
     @FXML private ImageView profileImageView;
@@ -44,10 +51,6 @@ public class TenantDashboardController {
     @FXML private VBox announcementsVBox;
     @FXML private VBox maintenanceVBox;
 
-    /**
-     * This method is called by the LoginController to pass in the
-     * currently logged-in tenant.
-     */
     public void initData(Tenant tenant) {
         currentTenant = tenant;
 
@@ -56,27 +59,105 @@ public class TenantDashboardController {
         tenantIdLabel.setText(currentTenant.getUserId());
         tenantEmailLabel.setText(currentTenant.getEmail());
 
-        // Example: Load a profile image (you would store this path in the model)
-        // Image profilePic = new Image(getClass().getResourceAsStream("/com/dtdt/DormManager/img/default-profile.png"));
-        // profileImageView.setImage(profilePic);
-
-        // 2. Populate Building/Room Info (Dummy Data)
-        // TODO: Get this info from the tenant's record (e.g., from a Room object)
-        buildingLabel.setText("Building A");
-        roomLabel.setText("Room 5210");
-        contractTypeLabel.setText("6-Month Term");
-        contractDatesLabel.setText("July 2025 - December 2025");
-
-        // 3. Load dynamic content
+        // 2. Load dynamic/linked data
+        loadLinkedData();
         loadAnnouncements();
-        loadMaintenanceRequests();
-        // Load persisted maintenance requests from Firebase
         loadMaintenanceRequestsFromFirebase();
     }
 
-    /**
-     * FXML Action: Called when "Request Maintenance" button is clicked.
-     */
+    private void loadLinkedData() {
+        // --- 1. Load Room Info ---
+        if (currentTenant.getRoomID() != null) {
+            DocumentReference roomRef = db.collection("rooms").document(currentTenant.getRoomID());
+
+            // --- FIX 1: Changed 'future ->' to '() ->' ---
+            roomRef.get().addListener(() -> {
+                try {
+                    DocumentSnapshot doc = roomRef.get().get(); // Get result
+                    if (doc.exists()) {
+                        Room room = doc.toObject(Room.class);
+                        Platform.runLater(() -> {
+                            buildingLabel.setText(room.getBuildingName());
+                            roomLabel.setText("Room " + room.getRoomNumber());
+                        });
+                    }
+                } catch (Exception e) { e.printStackTrace(); }
+            }, Runnable::run);
+        } else {
+            buildingLabel.setText("N/A");
+            roomLabel.setText("Not Assigned");
+        }
+
+        // --- 2. Load Contract Info ---
+        if (currentTenant.getContractID() != null) {
+            DocumentReference contractRef = db.collection("contracts").document(currentTenant.getContractID());
+
+            // --- FIX 2: Changed 'future ->' to '() ->' ---
+            contractRef.get().addListener(() -> {
+                try {
+                    DocumentSnapshot doc = contractRef.get().get(); // Get result
+                    if (doc.exists()) {
+                        Contract contract = doc.toObject(Contract.class);
+                        Platform.runLater(() -> {
+                            contractTypeLabel.setText(contract.getContractType());
+                            String dates = dateFormatter.format(contract.getStartDate()) + " - " +
+                                    dateFormatter.format(contract.getEndDate());
+                            contractDatesLabel.setText(dates);
+                        });
+                    }
+                } catch (Exception e) { e.printStackTrace(); }
+            }, Runnable::run);
+        } else {
+            contractTypeLabel.setText("No Contract");
+            contractDatesLabel.setText("N/A");
+        }
+    }
+
+    private void loadAnnouncements() {
+        announcementsVBox.getChildren().clear();
+
+        ApiFuture<QuerySnapshot> future = db.collection("announcements")
+                .orderBy("datePosted", Query.Direction.DESCENDING)
+                .limit(5)
+                .get();
+
+        future.addListener(() -> {
+            try {
+                List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+                Platform.runLater(() -> {
+                    if (documents.isEmpty()) {
+                        announcementsVBox.getChildren().add(new Label("No announcements right now."));
+                        return;
+                    }
+                    for (QueryDocumentSnapshot document : documents) {
+                        Announcement ann = document.toObject(Announcement.class);
+                        announcementsVBox.getChildren().add(createAnnouncementCard(ann));
+                    }
+                });
+            } catch (Exception e) { e.printStackTrace(); }
+        }, Runnable::run);
+    }
+
+    private VBox createAnnouncementCard(Announcement ann) {
+        VBox card = new VBox(5);
+        card.setStyle("-fx-border-color: #E0E0E0; -fx-border-width: 0 0 1 0; -fx-padding: 0 0 15 0;");
+
+        String dateString = (ann.getDatePosted() != null) ?
+                dateFormatter.format(ann.getDatePosted()) : "Recently";
+
+        Label dateLabel = new Label(dateString);
+        dateLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #666;");
+
+        Label titleLabel = new Label(ann.getTitle());
+        titleLabel.setStyle("-fx-font-size: 14; -fx-font-weight: bold;");
+
+        Label contentLabel = new Label(ann.getContent());
+        contentLabel.setWrapText(true);
+
+        card.getChildren().addAll(dateLabel, titleLabel, contentLabel);
+        return card;
+    }
+
     @FXML
     private void onRequestMaintenanceClick() {
         System.out.println("Request Maintenance button clicked.");
@@ -97,7 +178,6 @@ public class TenantDashboardController {
 
             MaintenanceDialogController.MaintenanceResult result = controller.getResult();
             if (result != null) {
-                // create a new maintenance card in the maintenanceVBox
                 java.time.LocalDate now = java.time.LocalDate.now();
                 java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("d/M/yyyy");
                 String dateText = now.format(fmt);
@@ -117,11 +197,7 @@ public class TenantDashboardController {
                 typeLabel.setStyle("-fx-text-fill: #333333; -fx-font-weight: bold;");
 
                 card.getChildren().addAll(dateLabel, typeLabel, descLabel);
-
-                // add to the top of the maintenance VBox
                 maintenanceVBox.getChildren().add(0, card);
-
-                // Persist to Firebase
                 saveMaintenanceRequestToFirebase(result);
             }
 
@@ -130,13 +206,9 @@ public class TenantDashboardController {
         }
     }
 
-    /**
-     * FXML Action: Called when "Logout" hyperlink is clicked.
-     */
     @FXML
     private void onLogoutClick() throws IOException {
         System.out.println("Logout clicked.");
-        // Reload the login screen
         Main main = new Main();
         main.changeScene("login-view.fxml");
     }
@@ -144,71 +216,30 @@ public class TenantDashboardController {
     @FXML
     private void onPaymentClick(ActionEvent event) throws IOException {
         System.out.println("Payment link clicked.");
-
-        // 1. Load the payment-view.fxml file
         FXMLLoader loader = new FXMLLoader(Main.class.getResource("/com/dtdt/DormManager/view/payment-view.fxml"));
         Parent root = loader.load();
-
-        // 2. Get the controller of the new scene
         PaymentController controller = loader.getController();
-
-        // 3. Pass the *current* tenant data to the new controller
         controller.initData(this.currentTenant);
-
-        // 4. Get the current stage (window) and change the scene
         Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
         stage.getScene().setRoot(root);
         stage.setTitle("Payment Registration");
-
-
     }
 
     @FXML
     private void onProfileClick(ActionEvent event) throws IOException {
         System.out.println("Profile link clicked.");
-
-        // 1. Load the profile-view.fxml file
         FXMLLoader loader = new FXMLLoader(Main.class.getResource("/com/dtdt/DormManager/view/tenant-profile-view.fxml"));
         Parent root = loader.load();
-
-        // 2. Get the controller of the new scene
         TenantProfileController controller = loader.getController();
-
-        // 3. Pass the *current* tenant data to the new controller
         controller.initData(this.currentTenant);
-
-        // 4. Get the current stage (window) and change the scene
         Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
         stage.getScene().setRoot(root);
         stage.setTitle("Tenant Profile");
     }
 
-
-
-    private void loadAnnouncements() {
-        // TODO: Fetch announcements from the database
-        // For now, we are just using the dummy data in the FXML.
-        // You would clear the dummy data first:
-        // announcementsVBox.getChildren().clear();
-
-        // Then add new ones:
-        // VBox announcementCard = createAnnouncementCard("Oct 20, 2025", "Water shutoff...");
-        // announcementsVBox.getChildren().add(announcementCard);
-    }
-
-    private void loadMaintenanceRequests() {
-        // TODO: Fetch this tenant's requests from the database
-        // For now, we are just using the dummy data in the FXML.
-        // maintenanceVBox.getChildren().clear();
-        // ...
-    }
-
-    /**
-     * Save maintenance request to Firebase Firestore under: maintenance/{userId}/requests/{doc}
-     */
     private void saveMaintenanceRequestToFirebase(com.dtdt.DormManager.controller.MaintenanceDialogController.MaintenanceResult result) {
         try {
-            Firestore db = FirebaseInit.getDatabase();
+            Firestore db = FirebaseInit.db;
             if (db == null) {
                 System.err.println("Firebase database not initialized");
                 return;
@@ -217,15 +248,15 @@ public class TenantDashboardController {
             Map<String, Object> data = new HashMap<>();
             data.put("type", result.type);
             data.put("description", result.description);
-            data.put("dateSubmitted", result.dateSubmitted);
+            data.put("dateSubmittedString", result.dateSubmitted);
+            data.put("dateSubmitted", new java.util.Date()); // Use java.util.Date
             data.put("status", "Pending");
+            data.put("tenantId", currentTenant.getUserId());
+            data.put("roomId", currentTenant.getRoomID());
 
-            // Use a generated document id to avoid collisions
-            String docId = result.dateSubmitted.replace("/", "_") + "_" + System.currentTimeMillis();
+            String docId = UUID.randomUUID().toString(); // This line needs java.util.UUID
 
-            ApiFuture<WriteResult> future = db.collection("maintenance")
-                    .document(currentTenant.getUserId())
-                    .collection("requests")
+            ApiFuture<WriteResult> future = db.collection("maintenanceRequests")
                     .document(docId)
                     .set(data);
 
@@ -244,20 +275,17 @@ public class TenantDashboardController {
         }
     }
 
-    /**
-     * Load maintenance requests from Firebase for the current tenant and populate the UI.
-     */
     private void loadMaintenanceRequestsFromFirebase() {
         try {
-            Firestore db = FirebaseInit.getDatabase();
+            Firestore db = FirebaseInit.db;
             if (db == null) {
                 System.err.println("Firebase database not initialized");
                 return;
             }
 
-            ApiFuture<QuerySnapshot> future = db.collection("maintenance")
-                    .document(currentTenant.getUserId())
-                    .collection("requests")
+            ApiFuture<QuerySnapshot> future = db.collection("maintenanceRequests")
+                    .whereEqualTo("tenantId", currentTenant.getUserId())
+                    .orderBy("dateSubmitted", Query.Direction.DESCENDING)
                     .get();
 
             future.addListener(() -> {
@@ -268,27 +296,30 @@ public class TenantDashboardController {
                             try {
                                 String type = doc.getString("type");
                                 String description = doc.getString("description");
-                                String dateSubmitted = doc.getString("dateSubmitted");
                                 String status = doc.getString("status");
 
-                                // Create UI card on JavaFX thread
+                                // This line needs java.util.Date
+                                Date date = doc.getDate("dateSubmitted");
+                                String dateText = (date != null) ?
+                                        dateFormatter.format(date) :
+                                        doc.getString("dateSubmittedString");
+
                                 Platform.runLater(() -> {
-                                    javafx.scene.layout.VBox card = new javafx.scene.layout.VBox();
+                                    VBox card = new VBox();
                                     card.setStyle("-fx-background-color: #EAEAEA; -fx-background-radius: 8; -fx-padding: 15;");
                                     card.setSpacing(5);
 
-                                    javafx.scene.control.Label dateLabel = new javafx.scene.control.Label((status != null ? status : "Pending") + ": " + (dateSubmitted != null ? dateSubmitted : ""));
+                                    Label dateLabel = new Label((status != null ? status : "Pending") + ": " + (dateText != null ? dateText : ""));
                                     dateLabel.setStyle("-fx-text-fill: #1a1a1a; -fx-font-weight: bold;");
 
-                                    javafx.scene.control.Label typeLabel = new javafx.scene.control.Label(type != null ? type : "General Maintenance / Others");
+                                    Label typeLabel = new Label(type != null ? type : "General Maintenance / Others");
                                     typeLabel.setStyle("-fx-text-fill: #333333; -fx-font-weight: bold;");
 
-                                    javafx.scene.control.Label descLabel = new javafx.scene.control.Label(description != null ? description : "");
+                                    Label descLabel = new Label(description != null ? description : "");
                                     descLabel.setWrapText(true);
                                     descLabel.setStyle("-fx-text-fill: #333333;");
 
                                     card.getChildren().addAll(dateLabel, typeLabel, descLabel);
-                                    // Add to bottom so older requests are at the end; latest remain on top if desired
                                     maintenanceVBox.getChildren().add(card);
                                 });
 

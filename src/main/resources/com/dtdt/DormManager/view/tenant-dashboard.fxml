@@ -129,18 +129,6 @@
                     </Label>
                     <ScrollPane fitToWidth="true" hbarPolicy="NEVER" style="-fx-background-color: transparent; -fx-background-insets: 0;" VBox.vgrow="ALWAYS">
                         <VBox fx:id="maintenanceVBox" spacing="10.0">
-                            <VBox style="-fx-background-color: #EAEAEA; -fx-background-radius: 8; -fx-padding: 15;">
-                                <Label text="Pending: 24/10/2025" textFill="#1a1a1a">
-                                    <font><Font name="System Bold" size="13.0" /></font>
-                                </Label>
-                                <Label text="Leaking Toilet Bowl" textFill="#333333" />
-                            </VBox>
-                            <VBox style="-fx-background-color: #EAEAEA; -fx-background-radius: 8; -fx-padding: 15;">
-                                <Label text="Done: 14/5/2025" textFill="#1a1a1a">
-                                    <font><Font name="System Bold" size="13.0" /></font>
-                                </Label>
-                                <Label text="Broken Chair" textFill="#333333" />
-                            </VBox>
                         </VBox>
                     </ScrollPane>
                 </VBox>

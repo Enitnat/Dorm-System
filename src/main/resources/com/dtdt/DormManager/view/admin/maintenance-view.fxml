@@ -1,72 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<?import javafx.scene.text.Text?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
 
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.dtdt.DormManager.controller.admin.MaintenanceViewController"
-      spacing="20.0" style="-fx-background-color: transparent;">
+<VBox spacing="20.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.dtdt.DormManager.controller.admin.MaintenanceViewController">
 
-    <!-- Header with Search and Add -->
-    <HBox spacing="20" alignment="CENTER_LEFT">
-        <VBox>
-            <Text style="-fx-font-size: 24; -fx-font-weight: bold;" text="Maintenance Requests"/>
-            <Text style="-fx-fill: #666666;" text="View and manage maintenance requests"/>
-        </VBox>
-        <Pane HBox.hgrow="ALWAYS"/>
-        <TextField promptText="Search requests..." prefWidth="300"
-                  style="-fx-background-color: white; -fx-background-radius: 20; -fx-padding: 8 16;"/>
-        <Button text="New Request" 
-                style="-fx-background-color: #1A1A1A; -fx-text-fill: white; -fx-background-radius: 20; -fx-padding: 8 16;"/>
-    </HBox>
+    <Label text="Maintenance Requests">
+        <font>
+            <Font name="System Bold" size="24.0" />
+        </font>
+    </Label>
+    <Label text="View and manage all pending maintenance requests from tenants." />
 
-    <!-- Request List Container -->
-    <VBox style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20;" VBox.vgrow="ALWAYS">
-        <!-- Filter Bar -->
-        <HBox spacing="10" alignment="CENTER_LEFT">
-            <ComboBox promptText="Building" />
-            <ComboBox promptText="Priority" />
-            <ComboBox promptText="Status" />
-            <Pane HBox.hgrow="ALWAYS"/>
-            <ComboBox promptText="Sort By" />
-        </HBox>
+    <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS"
+                style="-fx-background-color: transparent; -fx-background: transparent;">
+        <VBox fx:id="requestsContainer" spacing="15.0" />
+    </ScrollPane>
 
-        <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;" VBox.vgrow="ALWAYS">
-            <VBox fx:id="requestsContainer" spacing="15" style="-fx-padding: 20 0;">
-                <!-- Example Request Card -->
-                <VBox style="-fx-background-color: white; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-background-radius: 10; -fx-padding: 20;">
-                    <HBox spacing="20" alignment="CENTER_LEFT">
-                        <VBox spacing="5">
-                            <Label text="Leaking faucet in bathroom" style="-fx-font-size: 16; -fx-font-weight: bold;"/>
-                            <Label text="Room 101 - Building A" style="-fx-text-fill: #666;"/>
-                        </VBox>
-                        <Pane HBox.hgrow="ALWAYS"/>
-                        <VBox alignment="CENTER_RIGHT" spacing="5">
-                            <Label text="Priority" style="-fx-text-fill: #666;"/>
-                            <Label text="High" style="-fx-background-color: #FFEBEE; -fx-text-fill: #C62828; -fx-padding: 4 8; -fx-background-radius: 4;"/>
-                        </VBox>
-                        <VBox alignment="CENTER_RIGHT" spacing="5">
-                            <Label text="Status" style="-fx-text-fill: #666;"/>
-                            <Label text="Pending" style="-fx-background-color: #FFF3E0; -fx-text-fill: #E65100; -fx-padding: 4 8; -fx-background-radius: 4;"/>
-                        </VBox>
-                        <VBox alignment="CENTER_RIGHT" spacing="5">
-                            <Label text="Submitted" style="-fx-text-fill: #666;"/>
-                            <Label text="Oct 24, 2025" style="-fx-font-weight: bold;"/>
-                        </VBox>
-                        <Button text="View Details" 
-                                style="-fx-background-color: transparent; -fx-border-color: #1A1A1A; -fx-border-radius: 4;"/>
-                        <MenuButton text="More" style="-fx-background-color: transparent;">
-                            <items>
-                                <MenuItem text="Edit"/>
-                                <MenuItem text="Delete"/>
-                                <MenuItem text="Mark as Complete"/>
-                            </items>
-                        </MenuButton>
-                    </HBox>
-                </VBox>
-            </VBox>
-        </ScrollPane>
-    </VBox>
 </VBox>

@@ -1,103 +1,74 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.chart.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<?import javafx.scene.text.*?>
+<?import javafx.scene.chart.BarChart?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.LineChart?>
+<?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
 
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.dtdt.DormManager.controller.admin.StatsViewController"
-      spacing="20.0" style="-fx-background-color: transparent;">
+<VBox spacing="20.0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.dtdt.DormManager.controller.admin.StatsViewController">
+    <children>
+        <Label>
+            <font>
+                <Font name="System Bold" size="24.0" />
+            </font>
+        </Label>
 
-    <!-- Header -->
-    <VBox>
-        <Text style="-fx-font-size: 24; -fx-font-weight: bold;" text="Dashboard"/>
-        <Text style="-fx-fill: #666666;" text="View overall statistics and performance"/>
-    </VBox>
-
-    <!-- Quick Stats Cards -->
-    <HBox spacing="20.0">
-        <VBox styleClass="stat-card" style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-padding: 20; -fx-pref-width: 280;">
-            <HBox>
-                <VBox HBox.hgrow="ALWAYS">
-                    <Label text="Total Residents" style="-fx-font-size: 14; -fx-text-fill: #666;"/>
-                    <Label fx:id="totalResidentsLabel" text="247" style="-fx-font-size: 28; -fx-font-weight: bold;"/>
-                    <Label text="+12% vs last month" style="-fx-text-fill: #2E7D32;"/>
+        <GridPane hgap="20.0" vgap="20.0">
+            <columnConstraints>
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+            </rowConstraints>
+            <children>
+                <VBox prefHeight="50.0" prefWidth="260.0" style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 10;">
+                    <Label text="Total Residents" />
+                    <Label fx:id="totalResidentsLabel" style="-fx-font-size: 24; -fx-font-weight: bold;" text="0" />
                 </VBox>
-                <!-- Icon placeholder -->
-                <Region prefWidth="40" prefHeight="40" style="-fx-background-color: #E8F5E9; -fx-background-radius: 8;"/>
-            </HBox>
-        </VBox>
-        
-        <VBox styleClass="stat-card" style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-padding: 20; -fx-pref-width: 280;">
-            <HBox>
-                <VBox HBox.hgrow="ALWAYS">
-                    <Label text="Occupancy Rate" style="-fx-font-size: 14; -fx-text-fill: #666;"/>
-                    <Label fx:id="occupancyRateLabel" text="85%" style="-fx-font-size: 28; -fx-font-weight: bold;"/>
-                    <Label text="+5% vs last month" style="-fx-text-fill: #2E7D32;"/>
+                <VBox style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 10;" GridPane.columnIndex="1">
+                    <Label text="Occupancy Rate" />
+                    <Label fx:id="occupancyRateLabel" style="-fx-font-size: 24; -fx-font-weight: bold;" text="0%" />
                 </VBox>
-                <Region prefWidth="40" prefHeight="40" style="-fx-background-color: #E1F5FE; -fx-background-radius: 8;"/>
-            </HBox>
-        </VBox>
-        
-        <VBox styleClass="stat-card" style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-padding: 20; -fx-pref-width: 280;">
-            <HBox>
-                <VBox HBox.hgrow="ALWAYS">
-                    <Label text="Pending Maintenance" style="-fx-font-size: 14; -fx-text-fill: #666;"/>
-                    <Label fx:id="pendingMaintenanceLabel" text="12" style="-fx-font-size: 28; -fx-font-weight: bold;"/>
-                    <Label text="-3 vs last month" style="-fx-text-fill: #C62828;"/>
+                <VBox style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 10;" GridPane.columnIndex="2">
+                    <Label text="Pending Maintenance" />
+                    <Label fx:id="pendingMaintenanceLabel" style="-fx-font-size: 24; -fx-font-weight: bold;" text="0" />
                 </VBox>
-                <Region prefWidth="40" prefHeight="40" style="-fx-background-color: #FFEBEE; -fx-background-radius: 8;"/>
-            </HBox>
-        </VBox>
-        
-        <VBox styleClass="stat-card" style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-padding: 20; -fx-pref-width: 280;">
-            <HBox>
-                <VBox HBox.hgrow="ALWAYS">
-                    <Label text="Revenue This Month" style="-fx-font-size: 14; -fx-text-fill: #666;"/>
-                    <Label fx:id="revenueLabel" text="₱1.2M" style="-fx-font-size: 28; -fx-font-weight: bold;"/>
-                    <Label text="+8% vs last month" style="-fx-text-fill: #2E7D32;"/>
+                <VBox style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 10;" GridPane.columnIndex="3">
+                    <Label text="Total Revenue (All Time)" />
+                    <Label fx:id="revenueLabel" style="-fx-font-size: 24; -fx-font-weight: bold;" text="₱0.00" />
                 </VBox>
-                <Region prefWidth="40" prefHeight="40" style="-fx-background-color: #F1F8E9; -fx-background-radius: 8;"/>
-            </HBox>
-        </VBox>
-    </HBox>
+            </children>
+        </GridPane>
 
-    <!-- Charts Section -->
-    <HBox spacing="20.0" VBox.vgrow="ALWAYS">
-        <!-- Occupancy Trend Chart -->
-        <VBox HBox.hgrow="ALWAYS" style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-padding: 20;">
-            <HBox alignment="CENTER_LEFT" spacing="20">
-                <Label text="Occupancy Trend" style="-fx-font-size: 16; -fx-font-weight: bold;"/>
-                <ComboBox promptText="Last 6 Months"/>
-            </HBox>
-            <LineChart fx:id="occupancyTrendChart" createSymbols="false" 
-                      style="-fx-background-color: transparent;" legendVisible="false">
-                <xAxis>
-                    <CategoryAxis label="Month" style="-fx-text-fill: #666;"/>
-                </xAxis>
-                <yAxis>
-                    <NumberAxis label="Occupancy Rate (%)" style="-fx-text-fill: #666;"/>
-                </yAxis>
-            </LineChart>
-        </VBox>
-
-        <!-- Revenue Chart -->
-        <VBox HBox.hgrow="ALWAYS" style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-padding: 20;">
-            <HBox alignment="CENTER_LEFT" spacing="20">
-                <Label text="Revenue" style="-fx-font-size: 16; -fx-font-weight: bold;"/>
-                <ComboBox promptText="Last 6 Months"/>
-            </HBox>
-            <BarChart fx:id="revenueChart" style="-fx-background-color: transparent;" legendVisible="false">
-                <xAxis>
-                    <CategoryAxis label="Month" style="-fx-text-fill: #666;"/>
-                </xAxis>
-                <yAxis>
-                    <NumberAxis label="Amount (₱)" style="-fx-text-fill: #666;"/>
-                </yAxis>
-            </BarChart>
-        </VBox>
-    </HBox>
-
+        <HBox spacing="20.0" VBox.vgrow="ALWAYS">
+            <VBox style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 10;" HBox.hgrow="ALWAYS">
+                <Label text="Occupancy Trend (Dummy Data)">
+                    <font><Font name="System Bold" size="16.0" /></font>
+                </Label>
+                <LineChart fx:id="occupancyTrendChart" animated="false" VBox.vgrow="ALWAYS">
+                    <xAxis><CategoryAxis /></xAxis>
+                    <yAxis><NumberAxis /></yAxis>
+                </LineChart>
+            </VBox>
+            <VBox style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 10;" HBox.hgrow="ALWAYS">
+                <Label text="Revenue per Month (Dummy Data)">
+                    <font><Font name="System Bold" size="16.0" /></font>
+                </Label>
+                <BarChart fx:id="revenueChart" animated="false" VBox.vgrow="ALWAYS">
+                    <xAxis><CategoryAxis /></xAxis>
+                    <yAxis><NumberAxis /></yAxis>
+                </BarChart>
+            </VBox>
+        </HBox>
+    </children>
 </VBox>
